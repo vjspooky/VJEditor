@@ -7,6 +7,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import type { FormEvent, ReactNode } from 'react';
 
 const SESSION_KEY = 'vjeditor_session';
+const ACCOUNT_KEY = 'vjeditor_local_account';
 
 type Provider = 'Google' | 'Facebook' | 'GitHub' | 'Twitter';
 
@@ -15,6 +16,8 @@ export function AuthPage() {
   const location = useLocation();
   const [username, setUsername] = useState('admin');
   const [password, setPassword] = useState('VJEditorFree2026!');
+  const [fullName, setFullName] = useState('');
+  const [mode, setMode] = useState<'signin' | 'signup'>('signin');
   const [error, setError] = useState('');
   const [providerMessage, setProviderMessage] = useState('');
   const [loading, setLoading] = useState(false);
@@ -26,6 +29,12 @@ export function AuthPage() {
     setError('');
     setProviderMessage('');
     try {
+      const localAccount = readLocalAccount();
+      if (localAccount && localAccount.email === username && localAccount.password === password) {
+        localStorage.setItem(SESSION_KEY, 'true');
+        navigate(destination, { replace: true });
+        return;
+      }
       await api.login(username, password);
       localStorage.setItem(SESSION_KEY, 'true');
       navigate(destination, { replace: true });
@@ -34,6 +43,18 @@ export function AuthPage() {
     } finally {
       setLoading(false);
     }
+  }
+
+  function handleCreateAccount(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError('');
+    if (!fullName.trim() || !username.includes('@') || password.length < 8) {
+      setError('Enter your name, a valid email, and a password with at least 8 characters.');
+      return;
+    }
+    localStorage.setItem(ACCOUNT_KEY, JSON.stringify({ name: fullName.trim(), email: username, password }));
+    localStorage.setItem(SESSION_KEY, 'true');
+    navigate(destination, { replace: true });
   }
 
   function handleProvider(provider: Provider) {
@@ -64,8 +85,12 @@ export function AuthPage() {
           </div>
           <div className="mb-8">
             <p className="text-sm text-accent mb-2">Welcome to VJEditor</p>
-            <h2 className="text-3xl font-semibold tracking-tight">Create your account</h2>
-            <p className="text-sm text-muted mt-2">Enter your workspace through a connected account.</p>
+            <h2 className="text-3xl font-semibold tracking-tight">
+              {mode === 'signin' ? 'Welcome back' : 'Create your account'}
+            </h2>
+            <p className="text-sm text-muted mt-2">
+              {mode === 'signin' ? 'Sign in to open your creative workspace.' : 'Start with a free workspace account.'}
+            </p>
           </div>
 
           <div className="grid grid-cols-2 gap-2">
@@ -83,15 +108,27 @@ export function AuthPage() {
             <span className="h-px bg-border flex-1" />
           </div>
 
-          <form onSubmit={handleLogin} className="space-y-4">
+          <form onSubmit={mode === 'signin' ? handleLogin : handleCreateAccount} className="space-y-4">
+            {mode === 'signup' ? (
+              <label className="block">
+                <span className="text-xs text-muted">Full name</span>
+                <input
+                  value={fullName}
+                  onChange={(event) => setFullName(event.target.value)}
+                  autoComplete="name"
+                  className="mt-1 w-full h-10 rounded-lg border border-border bg-panel px-3 text-sm outline-none focus:border-accent"
+                />
+              </label>
+            ) : null}
             <label className="block">
-              <span className="text-xs text-muted">Username</span>
+              <span className="text-xs text-muted">{mode === 'signup' ? 'Email' : 'Username or email'}</span>
               <div className="relative mt-1">
                 <Mail size={15} className="absolute left-3 top-3 text-subtle" />
                 <input
                   value={username}
                   onChange={(event) => setUsername(event.target.value)}
-                  autoComplete="username"
+                  type={mode === 'signup' ? 'email' : 'text'}
+                  autoComplete={mode === 'signup' ? 'email' : 'username'}
                   className="w-full h-10 rounded-lg border border-border bg-panel pl-9 pr-3 text-sm outline-none focus:border-accent"
                 />
               </div>
@@ -111,13 +148,23 @@ export function AuthPage() {
             </label>
             {error ? <p className="text-sm text-danger" role="alert">{error}</p> : null}
             <Button type="submit" variant="primary" size="lg" className="w-full" disabled={loading}>
-              {loading ? 'Signing in...' : 'Enter workspace'}
+              {mode === 'signup' ? 'Create account' : loading ? 'Signing in...' : 'Enter workspace'}
             </Button>
           </form>
 
           <p className="text-xs text-muted mt-6 text-center">
-            Demo access is prefilled for this development workspace.
+            {mode === 'signin' ? 'Demo access is prefilled for this development workspace.' : 'Your account is stored for this development workspace.'}
           </p>
+          <button
+            type="button"
+            className="w-full mt-4 text-sm text-accent hover:underline cursor-pointer"
+            onClick={() => {
+              setMode(mode === 'signin' ? 'signup' : 'signin');
+              setError('');
+            }}
+          >
+            {mode === 'signin' ? 'Create a new account' : 'Already have an account? Sign in'}
+          </button>
           <p className="text-sm text-muted mt-8 text-center">
             <Link to="/" className="text-accent hover:underline">Back to VJEditor</Link>
           </p>
@@ -125,6 +172,15 @@ export function AuthPage() {
       </section>
     </main>
   );
+}
+
+function readLocalAccount(): { name: string; email: string; password: string } | null {
+  try {
+    const raw = localStorage.getItem(ACCOUNT_KEY);
+    return raw ? (JSON.parse(raw) as { name: string; email: string; password: string }) : null;
+  } catch {
+    return null;
+  }
 }
 
 function ProviderButton({
