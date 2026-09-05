@@ -1,4 +1,5 @@
 import { Button } from '@/components/ui/Button';
+import { useEditor } from '@/features/editor/EditorProvider';
 import {
   Captions,
   Eraser,
@@ -9,6 +10,7 @@ import {
   Subtitles,
   WandSparkles,
 } from 'lucide-react';
+import { useState } from 'react';
 
 const tools = [
   {
@@ -54,8 +56,81 @@ const tools = [
 ];
 
 export function AiToolsPanel() {
+  const { dispatch, state } = useEditor();
+  const [prompt, setPrompt] = useState('A cinematic product launch with a confident, energetic tone.');
+  const [status, setStatus] = useState('Choose an AI tool to add a draft to your timeline.');
+
+  function runTool(name: string) {
+    if (name === 'AI Video Generator') {
+      dispatch({
+        type: 'add-media',
+        asset: {
+          id: crypto.randomUUID(),
+          name: 'AI generated scene',
+          type: 'video',
+          durationMs: 8000,
+          thumbnailColor: '#234f67',
+          createdAt: new Date().toISOString(),
+        },
+      });
+      setStatus('AI scene added to the video track.');
+      return;
+    }
+    if (name === 'AI Script') {
+      dispatch({
+        type: 'add-text',
+        preset: {
+          name: 'AI Script',
+          text: prompt.slice(0, 90),
+          fontSize: 38,
+          fontWeight: 600,
+        },
+      });
+      setStatus('AI script draft added as a text layer.');
+      return;
+    }
+    if (name === 'AI Voice') {
+      dispatch({
+        type: 'add-media',
+        asset: {
+          id: crypto.randomUUID(),
+          name: 'AI voiceover draft.wav',
+          type: 'audio',
+          durationMs: 8000,
+          thumbnailColor: '#1f4a3c',
+          createdAt: new Date().toISOString(),
+        },
+      });
+      setStatus('AI voiceover draft added to the audio track.');
+      return;
+    }
+    if (name === 'Auto Captions') {
+      dispatch({ type: 'add-caption' });
+      setStatus('Caption draft added at the current playhead.');
+      return;
+    }
+    if (name === 'AI Auto Edit') {
+      dispatch({ type: 'set-zoom', zoom: Math.min(160, state.ui.zoom + 8) });
+      setStatus('Auto-edit preview applied: timeline zoom tightened.');
+      return;
+    }
+    setStatus(`${name} is ready for an AI provider connection.`);
+  }
+
   return (
     <div className="p-3 space-y-2 overflow-auto h-full">
+      <div className="rounded-xl border border-accent/40 bg-accent-soft p-3">
+        <label className="text-xs text-muted">
+          AI prompt
+          <textarea
+            value={prompt}
+            onChange={(event) => setPrompt(event.target.value)}
+            rows={3}
+            className="mt-1 w-full resize-none rounded-lg border border-border bg-panel px-2 py-1.5 text-sm text-fg outline-none focus:border-accent"
+          />
+        </label>
+        <p className="mt-2 text-xs text-accent" role="status">{status}</p>
+      </div>
       {tools.map((tool) => (
         <article key={tool.name} className="rounded-xl border border-border bg-panel p-3">
           <div className="flex items-start gap-2">
@@ -63,8 +138,8 @@ export function AiToolsPanel() {
             <div className="min-w-0 flex-1">
               <p className="text-sm font-medium">{tool.name}</p>
               <p className="text-xs text-muted mt-1">{tool.description}</p>
-              <Button size="sm" className="mt-2 h-7 text-xs" disabled>
-                Coming in Phase 2
+              <Button size="sm" className="mt-2 h-7 text-xs" onClick={() => runTool(tool.name)}>
+                {tool.name === 'AI Video Generator' || tool.name === 'AI Script' ? 'Generate draft' : 'Apply'}
               </Button>
             </div>
           </div>
