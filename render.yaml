@@ -8,12 +8,26 @@ services:
     envVars:
       - key: SPRING_PROFILES_ACTIVE
         value: postgres
-      - key: DATABASE_URL
-        sync: false
+      - key: DATABASE_HOST
+        fromDatabase:
+          name: vjeditor-db
+          property: host
+      - key: DATABASE_PORT
+        fromDatabase:
+          name: vjeditor-db
+          property: port
+      - key: DATABASE_NAME
+        fromDatabase:
+          name: vjeditor-db
+          property: database
       - key: DATABASE_USERNAME
-        sync: false
+        fromDatabase:
+          name: vjeditor-db
+          property: user
       - key: DATABASE_PASSWORD
-        sync: false
+        fromDatabase:
+          name: vjeditor-db
+          property: password
       - key: VJEDITOR_AUTH_USERNAME
         sync: false
       - key: VJEDITOR_AUTH_PASSWORD
@@ -22,3 +36,9 @@ services:
         sync: false
       - key: VJEDITOR_FRONTEND_ORIGINS
         value: https://vjspooky.github.io
+
+databases:
+  - name: vjeditor-db
+    plan: free
+    databaseName: vjeditor
+    user: vjeditor
