@@ -73,7 +73,7 @@ export function AppLayout({ children }: { children?: ReactNode }) {
       </aside>
 
       <div className="flex-1 min-w-0 flex flex-col">
-        <header className="h-14 border-b border-border flex items-center gap-3 px-4 bg-app-elevated/80">
+        <header className="h-14 border-b border-border flex items-center gap-2 px-2 sm:px-4 bg-app-elevated/80">
           <div className="md:hidden">
             <Logo compact to="/dashboard" />
           </div>
@@ -91,7 +91,7 @@ export function AppLayout({ children }: { children?: ReactNode }) {
               onKeyDown={(e) => {
                 if (e.key === 'Enter') commitSearch(query);
               }}
-              placeholder="Search projects, templates, media"
+              placeholder="Search projects..."
               className="bg-transparent outline-none text-sm w-full placeholder:text-subtle"
             />
           </label>
@@ -113,7 +113,22 @@ export function AppLayout({ children }: { children?: ReactNode }) {
             </div>
           </div>
         </header>
-        <main className="flex-1 overflow-auto">{children ?? <Outlet />}</main>
+        <main className="flex-1 overflow-auto pb-16 md:pb-0">{children ?? <Outlet />}</main>
+        <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 h-14 border-t border-border bg-app-elevated/95 backdrop-blur flex items-center justify-around">
+          {nav.slice(0, 5).map((item) => (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              end={item.end}
+              aria-label={item.label}
+              className={({ isActive }) =>
+                cx('h-10 w-12 grid place-items-center rounded-lg', isActive ? 'text-accent bg-accent-soft' : 'text-muted')
+              }
+            >
+              <item.icon size={18} />
+            </NavLink>
+          ))}
+        </nav>
       </div>
     </div>
   );

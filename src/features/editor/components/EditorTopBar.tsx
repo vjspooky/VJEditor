@@ -35,7 +35,7 @@ export function EditorTopBar() {
   }
 
   return (
-    <header className="h-12 shrink-0 border-b border-border bg-app-elevated flex items-center gap-3 px-3">
+    <header className="h-12 shrink-0 border-b border-border bg-app-elevated flex items-center gap-1.5 px-2 sm:gap-3 sm:px-3 overflow-x-auto">
       <Logo compact to="/dashboard" />
       <div className="w-px h-5 bg-border" />
       {editing ? (
@@ -52,7 +52,7 @@ export function EditorTopBar() {
       ) : (
         <button
           type="button"
-          className="text-sm font-medium px-2 h-8 rounded-md hover:bg-panel cursor-pointer"
+          className="max-w-[34vw] truncate text-sm font-medium px-2 h-8 rounded-md hover:bg-panel cursor-pointer"
           onClick={() => setEditing(true)}
         >
           {state.snapshot.name}
@@ -79,14 +79,14 @@ export function EditorTopBar() {
         >
           <Redo2 size={16} />
         </Button>
-        <Button size="sm" onClick={save}>
+        <Button size="sm" onClick={save} aria-label="Save project">
           <Save size={14} />
-          Save
+          <span className="hidden sm:inline">Save</span>
         </Button>
         <div className="relative">
-          <Button variant="primary" size="sm" onClick={() => setExportOpen((v) => !v)}>
+          <Button variant="primary" size="sm" onClick={() => setExportOpen((v) => !v)} aria-label="Export project">
             <Download size={14} />
-            Export
+            <span className="hidden sm:inline">Export</span>
           </Button>
           {exportOpen ? (
             <div className="absolute right-0 top-10 z-20 w-56 rounded-xl border border-border bg-app-elevated p-3 shadow-xl">

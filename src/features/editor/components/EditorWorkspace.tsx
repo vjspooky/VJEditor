@@ -18,12 +18,12 @@ export function EditorWorkspace() {
   const panel = state.ui.activeLeftPanel;
 
   return (
-    <div className="h-screen flex flex-col bg-app text-fg overflow-hidden">
+    <div className="h-[100dvh] flex flex-col bg-app text-fg overflow-hidden">
       <EditorTopBar />
       <div className="flex-1 min-h-0 flex">
         <LeftToolbar />
         {panelOpen ? (
-          <div className="w-[280px] shrink-0 border-r border-border bg-panel flex flex-col min-h-0">
+          <div className="w-[min(280px,calc(100vw-56px))] shrink-0 border-r border-border bg-panel flex flex-col min-h-0">
             <div className="h-9 px-3 flex items-center justify-between border-b border-border">
               <p className="text-xs uppercase tracking-wider text-muted">{labelFor(panel)}</p>
               <button

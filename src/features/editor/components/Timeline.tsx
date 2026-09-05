@@ -81,7 +81,7 @@ export function Timeline() {
   }
 
   return (
-    <section className="h-[240px] shrink-0 border-t border-border bg-app-elevated flex flex-col">
+    <section className="h-[220px] sm:h-[240px] shrink-0 border-t border-border bg-app-elevated flex flex-col">
       <div className="h-9 px-3 flex items-center justify-between border-b border-border">
         <p className="text-xs text-muted">Timeline</p>
         <div className="flex items-center gap-1">
