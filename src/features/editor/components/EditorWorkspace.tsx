@@ -9,7 +9,7 @@ import { PropertiesPanel } from '@/features/editor/components/PropertiesPanel';
 import { TextPanel } from '@/features/editor/components/TextPanel';
 import { Timeline } from '@/features/editor/components/Timeline';
 import { useEditor } from '@/features/editor/EditorProvider';
-import { PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import { Captions, Image, Mic2, PanelLeftClose, PanelLeftOpen, Sparkles, Type } from 'lucide-react';
 import { useState } from 'react';
 
 export function EditorWorkspace() {
@@ -21,7 +21,9 @@ export function EditorWorkspace() {
     <div className="h-[100dvh] flex flex-col bg-app text-fg overflow-hidden">
       <EditorTopBar />
       <div className="flex-1 min-h-0 flex">
-        <LeftToolbar />
+        <div className="hidden sm:block">
+          <LeftToolbar />
+        </div>
         {panelOpen ? (
           <div className="w-[min(280px,calc(100vw-56px))] shrink-0 border-r border-border bg-panel flex flex-col min-h-0">
             <div className="h-9 px-3 flex items-center justify-between border-b border-border">
@@ -80,8 +82,40 @@ export function EditorWorkspace() {
         <PreviewPlayer />
         <PropertiesPanel />
       </div>
+      <MobileEditorToolbar />
       <Timeline />
     </div>
+  );
+}
+
+function MobileEditorToolbar() {
+  const { state, dispatch } = useEditor();
+  const tools = [
+    { id: 'media' as const, label: 'Media', icon: Image },
+    { id: 'audio' as const, label: 'Audio', icon: Mic2 },
+    { id: 'text' as const, label: 'Text', icon: Type },
+    { id: 'captions' as const, label: 'Captions', icon: Captions },
+    { id: 'ai' as const, label: 'AI', icon: Sparkles },
+  ];
+
+  return (
+    <nav className="sm:hidden h-16 shrink-0 border-t border-border bg-app-elevated flex items-center justify-around px-1">
+      {tools.map((tool) => {
+        const Icon = tool.icon;
+        const active = state.ui.activeLeftPanel === tool.id;
+        return (
+          <button
+            key={tool.id}
+            type="button"
+            onClick={() => dispatch({ type: 'set-panel', panel: tool.id })}
+            className={`h-12 min-w-14 rounded-lg flex flex-col items-center justify-center gap-1 text-[10px] cursor-pointer ${active ? 'text-accent bg-accent-soft' : 'text-muted'}`}
+          >
+            <Icon size={18} />
+            {tool.label}
+          </button>
+        );
+      })}
+    </nav>
   );
 }
 
