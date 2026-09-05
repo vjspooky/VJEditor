@@ -1,0 +1,67 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+
+  --color-app: #0c0d10;
+  --color-app-elevated: #101217;
+  --color-panel: #14151a;
+  --color-panel-hover: #1b1c24;
+  --color-border: #262830;
+  --color-border-strong: #343645;
+  --color-muted: #8b8f9a;
+  --color-subtle: #5c6170;
+  --color-fg: #e8eaef;
+  --color-accent: #4f8cff;
+  --color-accent-hover: #6aa0ff;
+  --color-accent-soft: #4f8cff22;
+  --color-danger: #ef6b6b;
+  --color-success: #3dcaa0;
+  --color-track-video: #3d5a9a;
+  --color-track-audio: #2f7a62;
+  --color-track-text: #8a6a2f;
+  --color-track-caption: #6a4f9a;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-app);
+  color: var(--color-fg);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #343645 transparent;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #343645;
+  border-radius: 999px;
+}
+
+::selection {
+  background: #4f8cff55;
+}
+
+@keyframes playhead-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.65;
+  }
+}
