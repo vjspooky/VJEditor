@@ -122,6 +122,11 @@ export function Timeline() {
                   <ClipBlock
                     key={item.id}
                     item={item}
+                    mediaSrc={
+                      item.kind === 'video'
+                        ? state.snapshot.media.find((asset) => asset.id === item.mediaId)?.src
+                        : undefined
+                    }
                     zoom={zoom}
                     selected={item.id === selectedItemId}
                     onSelect={() => dispatch({ type: 'select', itemId: item.id })}
@@ -189,6 +194,7 @@ function TimeRuler({ durationMs, zoom }: { durationMs: number; zoom: number }) {
 
 function ClipBlock({
   item,
+  mediaSrc,
   zoom,
   selected,
   onSelect,
@@ -198,6 +204,7 @@ function ClipBlock({
   onTrimStart,
 }: {
   item: TimelineItem;
+  mediaSrc?: string;
   zoom: number;
   selected: boolean;
   onSelect: () => void;
@@ -249,6 +256,20 @@ function ClipBlock({
         userSelect: 'none',
       }}
     >
+      {mediaSrc ? (
+        <video
+          src={mediaSrc}
+          className="absolute inset-0 h-full w-full object-cover opacity-80 pointer-events-none"
+          muted
+          autoPlay
+          loop
+          playsInline
+          preload="metadata"
+        />
+      ) : null}
+      <span className="relative z-[1] block truncate bg-black/55 px-1 py-0.5 text-[10px] leading-none">
+        {item.name}
+      </span>
       <span
         className="absolute inset-y-0 left-0 w-2 cursor-ew-resize"
         onPointerDown={(event) => onTrimStart('start', event)}
