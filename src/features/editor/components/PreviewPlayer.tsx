@@ -53,6 +53,7 @@ export function PreviewPlayer() {
   const activeVideoAsset = activeVideo?.mediaId
     ? state.snapshot.media.find((asset) => asset.id === activeVideo.mediaId)
     : undefined;
+  const activeVideoName = activeVideoAsset?.name ?? activeVideo?.name;
 
   useEffect(() => {
     const element = videoRef.current;
@@ -125,6 +126,11 @@ export function PreviewPlayer() {
                 preload="metadata"
               />
             ) : null}
+          {activeVideoName ? (
+            <p className="absolute left-3 top-3 max-w-[80%] truncate rounded bg-black/70 px-2 py-1 text-xs text-white">
+              {activeVideoName}
+            </p>
+          ) : null}
           {activeText ? (
             <p
               className="absolute left-1/2 text-white drop-shadow-md px-4"

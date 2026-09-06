@@ -259,7 +259,7 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
               id: createId('audio'),
               trackId: track.id,
               kind: 'audio',
-              name: asset.name.replace(/\.[^.]+$/, ''),
+              name: asset.name,
               startMs: state.ui.playheadMs,
               durationMs,
               mediaId: asset.id,
