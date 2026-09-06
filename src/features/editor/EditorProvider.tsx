@@ -77,7 +77,7 @@ export function EditorProvider({
     dispatch({ type: 'mark-saved' });
   }, [durationMs, projectId, state.projectId, state.snapshot]);
 
-  const addUploadedFiles = useCallback((files: FileList | File[]) => {
+  const addUploadedFiles = useCallback(async (files: FileList | File[]) => {
     const list = Array.from(files);
     for (const file of list) {
       const type = file.type.startsWith('audio')
@@ -85,12 +85,13 @@ export function EditorProvider({
         : file.type.startsWith('image')
           ? 'image'
           : 'video';
+      const src = await fileToDataUrl(file);
       const asset: MediaAsset = {
         id: crypto.randomUUID(),
         name: file.name,
         type,
         thumbnailColor: type === 'audio' ? '#1f4a3c' : type === 'image' ? '#2a3f66' : '#1e3a5f',
-        src: URL.createObjectURL(file),
+        src,
         createdAt: new Date().toISOString(),
       };
       dispatch({ type: 'add-media', asset });
@@ -136,6 +137,15 @@ export function EditorProvider({
   );
 
   return <EditorContext.Provider value={value}>{children}</EditorContext.Provider>;
+}
+
+function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(reader.error ?? new Error('Could not read uploaded file'));
+    reader.readAsDataURL(file);
+  });
 }
 
 export function useEditor(): EditorContextValue {

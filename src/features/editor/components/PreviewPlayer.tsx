@@ -17,6 +17,7 @@ export function PreviewPlayer() {
   const { state, dispatch, durationMs, selected } = useEditor();
   const { playheadMs, isPlaying, volume } = state.ui;
   const frameRef = useRef<HTMLDivElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   const playheadRef = useRef(playheadMs);
   useEffect(() => {
@@ -49,6 +50,29 @@ export function PreviewPlayer() {
   const activeVideo = video?.kind === 'video' ? video : undefined;
   const activeText = text?.kind === 'text' ? text : undefined;
   const activeCaption = caption?.kind === 'caption' ? caption : undefined;
+  const activeVideoAsset = activeVideo?.mediaId
+    ? state.snapshot.media.find((asset) => asset.id === activeVideo.mediaId)
+    : undefined;
+
+  useEffect(() => {
+    const element = videoRef.current;
+    if (!element || !activeVideo || activeVideoAsset?.type !== 'video' || !activeVideoAsset.src) {
+      return;
+    }
+
+    const time = Math.max(0, (playheadMs - activeVideo.startMs) / 1000);
+    element.volume = volume / 100;
+    element.muted = volume === 0;
+    if (Math.abs(element.currentTime - time) > 0.15) {
+      element.currentTime = time;
+    }
+
+    if (isPlaying) {
+      void element.play().catch(() => undefined);
+    } else {
+      element.pause();
+    }
+  }, [activeVideo, activeVideoAsset, isPlaying, playheadMs, volume]);
 
   function step(direction: -1 | 1) {
     dispatch({ type: 'set-playing', playing: false });
@@ -86,6 +110,21 @@ export function PreviewPlayer() {
                 : undefined,
             }}
           />
+            {activeVideoAsset?.type === 'video' && activeVideoAsset.src ? (
+              <video
+                ref={videoRef}
+                src={activeVideoAsset.src}
+                className="absolute inset-0 h-full w-full object-contain"
+                style={{
+                  opacity: (activeVideo?.opacity ?? 100) / 100,
+                  transform: activeVideo
+                    ? `translate(${activeVideo.positionX}%, ${activeVideo.positionY}%) scale(${activeVideo.scale / 100}) rotate(${activeVideo.rotation}deg)`
+                    : undefined,
+                }}
+                playsInline
+                preload="metadata"
+              />
+            ) : null}
           {activeText ? (
             <p
               className="absolute left-1/2 text-white drop-shadow-md px-4"
