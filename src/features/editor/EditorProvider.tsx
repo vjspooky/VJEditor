@@ -89,9 +89,19 @@ export function EditorProvider({
     for (const file of list) {
       const asset = mediaService.create(file);
       mediaService.addToProject(asset.id, projectId);
-      dispatch({ type: 'add-media', asset });
+
+      // If the service hasn't resolved the duration yet (async probe), wait briefly
+      // so the timeline clip reflects the actual file length, not a default fallback.
+      let readyAsset = asset;
+      if ((asset.type === 'video' || asset.type === 'audio') && !asset.durationMs) {
+        await new Promise<void>((resolve) => setTimeout(resolve, 600));
+        readyAsset = mediaService.get(asset.id) ?? asset;
+      }
+
+      dispatch({ type: 'add-media', asset: readyAsset });
     }
   }, [projectId]);
+
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {

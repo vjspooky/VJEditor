@@ -74,8 +74,24 @@ export const mediaService: MediaStorageProvider & {
     };
     sessionUrls.set(asset.id, url);
     persistAssets([...storedAssets(), asset]);
+
+    // Probe the real duration from the uploaded file and update the stored asset
+    if (type === 'video' || type === 'audio') {
+      probeFileDuration(url, type).then((durationSec) => {
+        if (durationSec && isFinite(durationSec) && durationSec > 0) {
+          const stored = storedAssets();
+          const idx = stored.findIndex((a) => a.id === asset.id);
+          if (idx >= 0) {
+            stored[idx] = { ...stored[idx], durationMs: Math.round(durationSec * 1000) };
+            persistAssets(stored);
+          }
+        }
+      });
+    }
+
     return asset;
   },
+
 
   list: allAssets,
 
@@ -148,3 +164,21 @@ function isMediaType(value: unknown): value is MediaType {
 export function mediaStatus(value: MediaStatus | undefined): MediaStatus {
   return value ?? 'ready';
 }
+
+/**
+ * Reads the real duration of a video or audio file using a temporary
+ * HTMLMediaElement so the editor timeline always reflects the actual length.
+ */
+function probeFileDuration(blobUrl: string, type: 'video' | 'audio'): Promise<number | null> {
+  return new Promise((resolve) => {
+    const el = document.createElement(type === 'video' ? 'video' : 'audio');
+    el.preload = 'metadata';
+    el.onloadedmetadata = () => {
+      resolve(el.duration ?? null);
+      URL.revokeObjectURL(el.src); // revoke only the temp element's src
+      el.src = '';
+    };
+    el.onerror = () => resolve(null);
+    el.src = blobUrl;
+  });
+}
