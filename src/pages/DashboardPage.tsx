@@ -1,5 +1,6 @@
 import { Button } from '@/components/ui/Button';
 import { projectService } from '@/services/projectService';
+import { AiToolsDashboard } from '@/features/ai/AiToolsDashboard';
 import type { AspectRatio, ProjectResolution, StoredProject } from '@/types';
 import { formatDuration, formatRelativeTime } from '@/utils/format';
 import {
@@ -335,7 +336,7 @@ function dateValue(value: string): number { const parsed = Date.parse(value); re
 function readViewMode(): ViewMode { try { return sessionStorage.getItem('vjeditor_dashboard_view') === 'list' ? 'list' : 'grid'; } catch { return 'grid'; } }
 
 export function DashboardTemplatesPage() { return <SimpleDashboardPage title="Templates" body="Templates are ready to connect to project creation in a later phase." />; }
-export function DashboardAiPage() { return <SimpleDashboardPage title="AI Tools" body="AI generation is represented by the local project flow in Phase 2. Service integration comes later." />; }
+export function DashboardAiPage() { return <AiToolsDashboard />; }
 export function DashboardMediaPage() { return <SimpleDashboardPage title="Media library" body="Media management begins in Phase 3." />; }
 export function DashboardSettingsPage() { return <SimpleDashboardPage title="Settings" body="Workspace settings will be connected to the account service later." />; }
 function SimpleDashboardPage({ title, body }: { title: string; body: string }) { return <div className="mx-auto max-w-6xl px-6 py-8"><h1 className="text-2xl font-semibold tracking-tight">{title}</h1><p className="text-sm text-muted mt-2">{body}</p></div>; }

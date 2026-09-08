@@ -1,4 +1,4 @@
-import { currentUser } from '@/data/currentUser';
+import { getActiveUser } from '@/data/currentUser';
 import { Logo } from '@/components/ui/Logo';
 import { cx } from '@/utils/cx';
 import {
@@ -7,6 +7,7 @@ import {
   FolderOpen,
   Home,
   Images,
+  LogOut,
   Search,
   Settings,
   Sparkles,
@@ -27,6 +28,7 @@ export function AppLayout({ children }: { children?: ReactNode }) {
   const [searchParams, setSearchParams] = useSearchParams();
   const query = searchParams.get('q') ?? '';
   const navigate = useNavigate();
+  const activeUser = getActiveUser();
 
   function commitSearch(value: string) {
     const next = value.trim();
@@ -105,12 +107,24 @@ export function AppLayout({ children }: { children?: ReactNode }) {
           </button>
           <div className="flex items-center gap-2 pl-1">
             <span className="h-8 w-8 rounded-full bg-accent text-app text-xs font-semibold grid place-items-center">
-              {currentUser.avatarInitials}
+              {activeUser.avatarInitials}
             </span>
             <div className="hidden lg:block leading-tight">
-              <p className="text-sm font-medium">{currentUser.name}</p>
-              <p className="text-[11px] text-muted capitalize">{currentUser.plan} plan</p>
+              <p className="text-sm font-medium">{activeUser.name}</p>
+              <p className="text-[11px] text-muted capitalize">{activeUser.plan} plan</p>
             </div>
+            <button
+              type="button"
+              onClick={() => {
+                localStorage.removeItem('vjeditor_session');
+                localStorage.removeItem('vjeditor_active_user');
+                navigate('/login');
+              }}
+              title="Sign out"
+              className="text-muted hover:text-danger ml-1 p-1.5 rounded-lg border border-border bg-panel hover:bg-panel-hover cursor-pointer"
+            >
+              <LogOut size={14} />
+            </button>
           </div>
         </header>
         <main className="flex-1 overflow-auto pb-16 md:pb-0">{children ?? <Outlet />}</main>
