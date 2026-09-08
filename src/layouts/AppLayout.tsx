@@ -19,7 +19,7 @@ const nav = [
   { to: '/dashboard/projects', label: 'Projects', icon: FolderOpen },
   { to: '/dashboard/templates', label: 'Templates', icon: Clapperboard },
   { to: '/dashboard/ai', label: 'AI Tools', icon: Sparkles },
-  { to: '/dashboard/media', label: 'Media', icon: Images },
+  { to: '/media', label: 'Media', icon: Images },
   { to: '/dashboard/settings', label: 'Settings', icon: Settings },
 ];
 

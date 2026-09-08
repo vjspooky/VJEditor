@@ -11,6 +11,7 @@ import { EditorPage } from '@/pages/EditorPage';
 import { AuthPage } from '@/pages/AuthPage';
 import { LandingPage } from '@/pages/LandingPage';
 import { NewProjectPage } from '@/pages/NewProjectPage';
+import { MediaPage } from '@/pages/MediaPage';
 import {
   BrowserRouter,
   HashRouter,
@@ -40,6 +41,7 @@ export default function App() {
           <Route path="settings" element={<DashboardSettingsPage />} />
         </Route>
         <Route path="/projects/new" element={<RequireAuth><NewProjectPage /></RequireAuth>} />
+        <Route path="/media" element={<RequireAuth><AppLayout><MediaPage /></AppLayout></RequireAuth>} />
         <Route path="/editor/:projectId" element={<RequireAuth><EditorPage /></RequireAuth>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

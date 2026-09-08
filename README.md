@@ -51,3 +51,8 @@ mvn spring-boot:run
 
 The frontend HTTP client is available in `src/services/api.ts`; the local project service remains the
 active UI adapter until PostgreSQL-backed persistence is introduced.
+
+## Architecture & Implementation Roadmap
+
+For the complete 22-phase breakdown, state management hierarchy, backend services, AI pipelines, and rendering engine specifications, see [ARCHITECTURE.md](file:///e:/vjeditor/ARCHITECTURE.md).
+

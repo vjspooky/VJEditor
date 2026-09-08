@@ -1,4 +1,5 @@
 import { projectService } from '@/services/projectService';
+import { mediaService } from '@/services/mediaService';
 import { findItem, projectDurationMs } from '@/utils/timeline';
 import {
   createContext,
@@ -16,7 +17,7 @@ import {
   type EditorState,
   type LeftPanelId,
 } from '@/features/editor/editorReducer';
-import type { MediaAsset, TimelineItem } from '@/types';
+import type { TimelineItem } from '@/types';
 
 interface EditorContextValue {
   state: EditorState;
@@ -77,26 +78,20 @@ export function EditorProvider({
     dispatch({ type: 'mark-saved' });
   }, [durationMs, projectId, state.projectId, state.snapshot]);
 
+  useEffect(() => {
+    if (state.ui.isSaved) return;
+    const handle = window.setTimeout(save, 500);
+    return () => window.clearTimeout(handle);
+  }, [save, state.ui.isSaved]);
+
   const addUploadedFiles = useCallback(async (files: FileList | File[]) => {
     const list = Array.from(files);
     for (const file of list) {
-      const type = file.type.startsWith('audio')
-        ? 'audio'
-        : file.type.startsWith('image')
-          ? 'image'
-          : 'video';
-      const src = await fileToDataUrl(file);
-      const asset: MediaAsset = {
-        id: crypto.randomUUID(),
-        name: file.name,
-        type,
-        thumbnailColor: type === 'audio' ? '#1f4a3c' : type === 'image' ? '#2a3f66' : '#1e3a5f',
-        src,
-        createdAt: new Date().toISOString(),
-      };
+      const asset = mediaService.create(file);
+      mediaService.addToProject(asset.id, projectId);
       dispatch({ type: 'add-media', asset });
     }
-  }, []);
+  }, [projectId]);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -106,22 +101,7 @@ export function EditorProvider({
         (target.tagName === 'INPUT' ||
           target.tagName === 'TEXTAREA' ||
           target.isContentEditable);
-      if (event.code === 'Space' && !typing) {
-        event.preventDefault();
-        dispatch({ type: 'toggle-play' });
-      }
-      if ((event.key === 'Delete' || event.key === 'Backspace') && !typing) {
-        event.preventDefault();
-        dispatch({ type: 'delete-selected' });
-      }
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'z') {
-        event.preventDefault();
-        dispatch({ type: event.shiftKey ? 'redo' : 'undo' });
-      }
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'y') {
-        event.preventDefault();
-        dispatch({ type: 'redo' });
-      }
+      if (typing) return;
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 's') {
         event.preventDefault();
         save();
@@ -139,14 +119,6 @@ export function EditorProvider({
   return <EditorContext.Provider value={value}>{children}</EditorContext.Provider>;
 }
 
-function fileToDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result));
-    reader.onerror = () => reject(reader.error ?? new Error('Could not read uploaded file'));
-    reader.readAsDataURL(file);
-  });
-}
 
 export function useEditor(): EditorContextValue {
   const ctx = useContext(EditorContext);

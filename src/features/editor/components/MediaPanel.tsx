@@ -1,5 +1,6 @@
 import { Button } from '@/components/ui/Button';
 import { useEditor } from '@/features/editor/EditorProvider';
+import { useCanvas } from '@/features/editor/CanvasProvider';
 import type { MediaAsset, MediaType } from '@/types';
 import { cx } from '@/utils/cx';
 import { Upload } from 'lucide-react';
@@ -14,6 +15,7 @@ const tabs: { id: MediaType | 'all'; label: string }[] = [
 
 export function MediaPanel() {
   const { state, dispatch, addUploadedFiles } = useEditor();
+  const { addMedia } = useCanvas();
   const [tab, setTab] = useState<(typeof tabs)[number]['id']>('all');
   const [dragging, setDragging] = useState(false);
 
@@ -74,7 +76,10 @@ export function MediaPanel() {
           <MediaCard
             key={asset.id}
             asset={asset}
-            onAdd={() => dispatch({ type: 'add-media', asset })}
+            onAdd={() => {
+              if (asset.type === 'video' || asset.type === 'image') addMedia(asset.id, asset.type);
+            }}
+            onTimeline={() => dispatch({ type: 'add-media', asset })}
           />
         ))}
       </div>
@@ -82,15 +87,13 @@ export function MediaPanel() {
   );
 }
 
-function MediaCard({ asset, onAdd }: { asset: MediaAsset; onAdd: () => void }) {
+function MediaCard({ asset, onAdd, onTimeline }: { asset: MediaAsset; onAdd: () => void; onTimeline: () => void }) {
   return (
     <article className="rounded-lg border border-border overflow-hidden bg-panel">
       <div className="h-16" style={{ background: asset.thumbnailColor }} />
       <div className="p-2">
         <p className="text-[11px] truncate">{asset.name}</p>
-        <Button size="sm" className="mt-2 w-full h-7 text-[11px]" onClick={onAdd}>
-          Add to timeline
-        </Button>
+        <div className="mt-2 grid grid-cols-2 gap-1"><Button size="sm" className="h-7 text-[10px]" onClick={onAdd} disabled={asset.type === 'audio'}>{asset.type === 'audio' ? 'Audio' : 'Canvas'}</Button><Button size="sm" className="h-7 text-[10px]" onClick={onTimeline}>Timeline</Button></div>
       </div>
     </article>
   );

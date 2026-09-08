@@ -11,11 +11,11 @@ import type { CreateProjectInput, MediaAsset, StoredProject, TimelineTrack } fro
 import { createId } from '@/utils/id';
 
 const PROJECTS_KEY = 'projects';
-const API_ENABLED = Boolean(import.meta.env.VITE_API_URL) || import.meta.env.DEV;
+const API_ENABLED = Boolean(import.meta.env.VITE_API_URL);
 
 function loadAll(): StoredProject[] {
-  const existing = readJson<StoredProject[] | null>(PROJECTS_KEY, null);
-  if (existing && existing.length > 0) return existing;
+  const existing = readJson<unknown>(PROJECTS_KEY, null);
+  if (Array.isArray(existing) && existing.every(isStoredProject)) return existing;
   const seeded = seedStoredProjects();
   writeJson(PROJECTS_KEY, seeded);
   return seeded;
@@ -44,6 +44,7 @@ export const projectService = {
         name: input.name,
         duration: input.duration,
         aspectRatio: input.aspectRatio,
+        resolution: input.resolution ?? '1080p',
         thumbnailColor: colorForSource(input.source),
         createdAt: now,
         updatedAt: now,
@@ -174,4 +175,17 @@ function emptyTracks(): TimelineTrack[] {
 
 export function appendMedia(project: StoredProject, asset: MediaAsset): StoredProject {
   return { ...project, media: [asset, ...project.media] };
+}
+
+function isStoredProject(value: unknown): value is StoredProject {
+  if (!value || typeof value !== 'object') return false;
+  const candidate = value as Partial<StoredProject>;
+  return Boolean(
+    candidate.project &&
+      typeof candidate.project === 'object' &&
+      typeof candidate.project.id === 'string' &&
+      typeof candidate.project.name === 'string' &&
+      Array.isArray(candidate.tracks) &&
+      Array.isArray(candidate.media),
+  );
 }

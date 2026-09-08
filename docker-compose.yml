@@ -1,0 +1,73 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: vjeditor-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: vjeditor
+      POSTGRES_USER: vjeditor
+      POSTGRES_PASSWORD: vjeditor_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/init.sql:ro
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: ../docker/backend.Dockerfile
+    container_name: vjeditor-backend
+    restart: unless-stopped
+    depends_on:
+      - postgres
+    environment:
+      SPRING_PROFILES_ACTIVE: postgres
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_NAME: vjeditor
+      DATABASE_USERNAME: vjeditor
+      DATABASE_PASSWORD: vjeditor_password
+      VJEDITOR_JWT_SECRET: default-super-secret-key-that-is-at-least-32-chars-long
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./storage:/app/storage
+
+  ai-service:
+    build:
+      context: ./ai-service
+      dockerfile: ../docker/ai.Dockerfile
+    container_name: vjeditor-ai
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./storage:/app/storage
+
+  rendering:
+    build:
+      context: ./rendering
+      dockerfile: ../docker/rendering.Dockerfile
+    container_name: vjeditor-rendering
+    restart: unless-stopped
+    depends_on:
+      - backend
+    volumes:
+      - ./storage:/storage
+
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/frontend.Dockerfile
+    container_name: vjeditor-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "5173:80"
+
+volumes:
+  postgres_data:

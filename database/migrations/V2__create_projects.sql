@@ -1,0 +1,15 @@
+-- V2: Create Projects Table
+CREATE TABLE IF NOT EXISTS projects (
+    id VARCHAR(36) PRIMARY KEY,
+    user_id VARCHAR(36) REFERENCES users(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    thumbnail VARCHAR(500),
+    duration NUMERIC(10, 3) NOT NULL DEFAULT 0.0,
+    aspect_ratio VARCHAR(10) NOT NULL DEFAULT '16:9',
+    resolution VARCHAR(10) NOT NULL DEFAULT '1080p',
+    type VARCHAR(20) NOT NULL DEFAULT 'blank',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_projects_user_id ON projects(user_id);
