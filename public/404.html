@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>VJEditor</title>
+    <script>
+      // Redirect 404s back to root with hash routing for GitHub Pages
+      var repo = window.location.pathname.split('/')[1] || 'VJEditor';
+      var path = window.location.pathname.replace(new RegExp('^/' + repo), '').replace(/^\//, '');
+      var target = '/' + repo + '/#/' + path + window.location.search;
+      window.location.replace(target);
+    </script>
+  </head>
+  <body>
+  </body>
+</html>
