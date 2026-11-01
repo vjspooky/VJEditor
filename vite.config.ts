@@ -5,6 +5,9 @@ import { defineConfig } from 'vite'
 
 export default defineConfig({
   base: process.env.VITE_GITHUB_PAGES?.trim() === 'true' ? './' : '/',
+  define: {
+    'import.meta.env.VITE_GITHUB_PAGES': JSON.stringify(process.env.VITE_GITHUB_PAGES?.trim() ?? 'false'),
+  },
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {

@@ -2,7 +2,7 @@ import { Button } from '@/components/ui/Button';
 import { useCanvas } from '@/features/editor/CanvasProvider';
 import { useEditor } from '@/features/editor/EditorProvider';
 import type { CanvasElement } from '@/features/editor/canvasTypes';
-import type { Caption, TextAnimation, TextLayer, TimelineItem, TimelineTrack, VideoClip } from '@/types';
+import type { AudioClip, Caption, TextAnimation, TextLayer, TimelineItem, TimelineTrack, VideoClip } from '@/types';
 import { defaultElement } from '@/services/editorService';
 import { buildCssFilter } from '@/utils/effects';
 import { formatClock, aspectToCss } from '@/utils/format';
@@ -15,6 +15,7 @@ export function CanvasPreview() {
   const { state, select, update } = useCanvas();
   const frameRef = useRef<HTMLDivElement>(null);
   const mediaRefs = useRef(new Map<string, HTMLVideoElement>());
+  const audioRefs = useRef(new Map<string, HTMLAudioElement>());
   const [volume, setVolume] = useState(80);
   const [muted, setMuted] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -29,6 +30,11 @@ export function CanvasPreview() {
   const activeTimelineClips = editorState.snapshot.tracks
     .flatMap((track) => track.items.map((item) => ({ track, item })))
     .filter(isActiveVideoClip(playheadMs));
+
+  const activeAudioClips = editorState.snapshot.tracks
+    .filter((track) => !track.hidden && !track.muted)
+    .flatMap((track) => track.items.map((item) => ({ track, item })))
+    .filter(isActiveAudioClip(playheadMs));
 
   const activeTextClips = editorState.snapshot.tracks
     .filter((track) => !track.hidden)
@@ -53,19 +59,25 @@ export function CanvasPreview() {
     );
 
   const timelineHasClips = editorState.snapshot.tracks.some((track) =>
-    track.items.some((item) => item.kind === 'video'),
+    track.items.some((item) => item.kind === 'video' || item.kind === 'audio'),
   );
 
   const renderElements = useMemo(() => {
     if (!timelineHasClips) return state.elements;
     return activeTimelineClips.map(
-      ({ item }, index) =>
-        state.elements.find((element) => element.mediaId === item.mediaId) ?? {
-          ...defaultElement(item.mediaId ?? '', 'video', state.canvas, index),
-          id: `timeline-${item.id}`,
-        },
+      ({ item }, index) => {
+        const asset = assets.find((a) => a.id === item.mediaId);
+        const visualType: 'video' | 'image' = asset?.type === 'image' ? 'image' : 'video';
+        return (
+          state.elements.find((element) => element.mediaId === item.mediaId) ?? {
+            ...defaultElement(item.mediaId ?? '', visualType, state.canvas, index),
+            id: `timeline-${item.id}`,
+            type: visualType,
+          }
+        );
+      },
     );
-  }, [activeTimelineClips, state.canvas, state.elements, timelineHasClips]);
+  }, [activeTimelineClips, assets, state.canvas, state.elements, timelineHasClips]);
 
   const canvasScale = Math.min(1, state.canvas.zoom / 100);
 
@@ -97,6 +109,10 @@ export function CanvasPreview() {
       video.volume = volume / 100;
       video.muted = muted || volume === 0;
     });
+    audioRefs.current.forEach((audio) => {
+      audio.volume = volume / 100;
+      audio.muted = muted || volume === 0;
+    });
   }, [muted, volume]);
 
   useEffect(() => {
@@ -109,7 +125,16 @@ export function CanvasPreview() {
       if (isPlaying) void video.play().catch(() => undefined);
       else video.pause();
     });
-  }, [activeTimelineClips, currentTime, playheadMs, isPlaying, renderElements]);
+
+    activeAudioClips.forEach(({ item }) => {
+      const audio = audioRefs.current.get(item.id);
+      if (!audio) return;
+      const nextTime = Math.max(0, (playheadMs - item.startMs) / 1000);
+      if (Math.abs(audio.currentTime - nextTime) > 0.15) audio.currentTime = nextTime;
+      if (isPlaying) void audio.play().catch(() => undefined);
+      else audio.pause();
+    });
+  }, [activeAudioClips, activeTimelineClips, currentTime, playheadMs, isPlaying, renderElements]);
 
   function togglePlayback() {
     if (!duration) return;
@@ -119,6 +144,10 @@ export function CanvasPreview() {
       if (next) void video.play().catch(() => dispatch({ type: 'set-playing', playing: false }));
       else video.pause();
     });
+    audioRefs.current.forEach((audio) => {
+      if (next) void audio.play().catch(() => undefined);
+      else audio.pause();
+    });
   }
 
   function seek(value: number) {
@@ -126,6 +155,9 @@ export function CanvasPreview() {
     dispatch({ type: 'set-playhead', ms: next * 1000 });
     mediaRefs.current.forEach((video) => {
       video.currentTime = next;
+    });
+    audioRefs.current.forEach((audio) => {
+      audio.currentTime = next;
     });
   }
 
@@ -348,6 +380,25 @@ export function CanvasPreview() {
             );
           })}
 
+          {/* Active Audio Elements */}
+          {activeAudioClips.map(({ item }) => {
+            const asset = assets.find((a) => a.id === item.mediaId);
+            const src = asset?.src ?? asset?.url;
+            if (!src) return null;
+            return (
+              <audio
+                key={item.id}
+                ref={(node) => {
+                  if (node) audioRefs.current.set(item.id, node);
+                  else audioRefs.current.delete(item.id);
+                }}
+                src={src}
+                preload="metadata"
+                className="hidden"
+              />
+            );
+          })}
+
           {!renderElements.length && !activeTextClips.length && (
             <p className="absolute inset-0 grid place-items-center text-sm text-muted">
               Add media, text, or captions to preview on the canvas
@@ -419,6 +470,18 @@ function isActiveVideoClip(playheadMs: number) {
     value.track.kind === 'video' &&
     !value.track.hidden &&
     value.item.kind === 'video' &&
+    playheadMs >= value.item.startMs &&
+    playheadMs < value.item.startMs + value.item.durationMs;
+}
+
+function isActiveAudioClip(playheadMs: number) {
+  return (value: { track: TimelineTrack; item: TimelineItem }): value is { track: TimelineTrack; item: AudioClip } =>
+    value.track.kind === 'audio' &&
+    !value.track.hidden &&
+    !value.track.muted &&
+    value.item.kind === 'audio' &&
+    !value.item.hidden &&
+    !value.item.muted &&
     playheadMs >= value.item.startMs &&
     playheadMs < value.item.startMs + value.item.durationMs;
 }

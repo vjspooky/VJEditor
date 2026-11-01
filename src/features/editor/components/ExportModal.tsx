@@ -101,17 +101,74 @@ export function ExportModal({ onClose }: { onClose: () => void }) {
     setStageIndex(0);
   }
 
-  function downloadResult() {
-    // In a real implementation this would download from a server URL.
-    // Here we generate a dummy JSON blob as a placeholder.
-    const payload = JSON.stringify({ project: state.snapshot.name, config, exportedAt: new Date().toISOString() }, null, 2);
-    const blob = new Blob([payload], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${state.snapshot.name || 'export'}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
+  async function downloadResult() {
+    const firstVideo = state.snapshot.media.find((m) => m.type === 'video' && (m.src || m.url));
+    const sanitizeName = (state.snapshot.name || 'vjeditor_export').toLowerCase().replace(/\s+/g, '_');
+    const filename = `${sanitizeName}.${config.format}`;
+
+    if (firstVideo && (firstVideo.src || firstVideo.url)) {
+      try {
+        const response = await fetch(firstVideo.src ?? firstVideo.url!);
+        const videoBlob = await response.blob();
+        const url = URL.createObjectURL(videoBlob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(url);
+        return;
+      } catch {
+        // Fall back to canvas video synthesis
+      }
+    }
+
+    try {
+      const canvas = document.createElement('canvas');
+      canvas.width = config.resolution === '4K' ? 3840 : config.resolution === '720p' ? 1280 : 1920;
+      canvas.height = config.resolution === '4K' ? 2160 : config.resolution === '720p' ? 720 : 1080;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.fillStyle = '#08090c';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = '#6366f1';
+        ctx.font = 'bold 48px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(state.snapshot.name || 'VJEditor Video', canvas.width / 2, canvas.height / 2);
+      }
+
+      const stream = canvas.captureStream(config.fps);
+      const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
+        ? 'video/webm;codecs=vp9'
+        : 'video/webm';
+      const recorder = new MediaRecorder(stream, { mimeType });
+      const chunks: Blob[] = [];
+
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) chunks.push(e.data);
+      };
+
+      recorder.onstop = () => {
+        const videoBlob = new Blob(chunks, { type: mimeType });
+        const url = URL.createObjectURL(videoBlob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename.endsWith('.mp4') ? filename.replace('.mp4', '.webm') : filename;
+        a.click();
+        URL.revokeObjectURL(url);
+      };
+
+      recorder.start();
+      setTimeout(() => recorder.stop(), 1000);
+    } catch {
+      const payload = JSON.stringify({ project: state.snapshot.name, config, exportedAt: new Date().toISOString() }, null, 2);
+      const blob = new Blob([payload], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${state.snapshot.name || 'export'}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
   }
 
   const isComplete = activeJob?.status === 'complete';

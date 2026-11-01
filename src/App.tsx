@@ -25,7 +25,13 @@ import type { ReactNode } from 'react';
 const SESSION_KEY = 'vjeditor_session';
 
 export default function App() {
-  const Router = import.meta.env.VITE_GITHUB_PAGES === 'true' ? HashRouter : BrowserRouter;
+  const isGitHubPages =
+    import.meta.env.VITE_GITHUB_PAGES === 'true' ||
+    typeof window !== 'undefined' && (
+      window.location.hostname.endsWith('github.io') ||
+      window.location.pathname.startsWith('/VJEditor')
+    );
+  const Router = isGitHubPages ? HashRouter : BrowserRouter;
 
   return (
     <Router>
