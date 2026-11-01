@@ -7,7 +7,7 @@ import { defaultElement } from '@/services/editorService';
 import { buildCssFilter } from '@/utils/effects';
 import { formatClock, aspectToCss } from '@/utils/format';
 import { interpolateKeyframes } from '@/utils/keyframe';
-import { Maximize2, Pause, Play, RotateCcw, Volume2, VolumeX } from 'lucide-react';
+import { Maximize2, Pause, Play, RotateCcw, ShieldAlert, Volume2, VolumeX } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react';
 
 export function CanvasPreview() {
@@ -18,6 +18,7 @@ export function CanvasPreview() {
   const audioRefs = useRef(new Map<string, HTMLAudioElement>());
   const [volume, setVolume] = useState(80);
   const [muted, setMuted] = useState(false);
+  const [safeZonesEnabled, setSafeZonesEnabled] = useState(false);
   const [failedElementIds, setFailedElementIds] = useState<Set<string>>(new Set());
   const [drag, setDrag] = useState<{ id: string; startX: number; startY: number; x: number; y: number } | null>(null);
 
@@ -416,6 +417,22 @@ export function CanvasPreview() {
               Add media, text, or captions to preview on the canvas
             </p>
           )}
+
+          {/* Action & Title Safe Zones */}
+          {safeZonesEnabled && (
+            <>
+              <div className="safe-zone-action" title="Action Safe Area (90%)">
+                <span className="absolute top-1 left-1.5 text-[9px] uppercase tracking-wider font-mono text-accent/70 bg-black/60 px-1 py-0.5 rounded">
+                  Action Safe
+                </span>
+              </div>
+              <div className="safe-zone-title" title="Title Safe Area (80%)">
+                <span className="absolute top-1 left-1.5 text-[9px] uppercase tracking-wider font-mono text-rose-400/80 bg-black/60 px-1 py-0.5 rounded">
+                  Title Safe
+                </span>
+              </div>
+            </>
+          )}
         </div>
       </div>
       <div className="shrink-0 border-t border-border bg-app-elevated px-3 py-2 space-y-2">
@@ -445,6 +462,38 @@ export function CanvasPreview() {
             {formatClock(currentTime * 1000)} / {formatClock(duration * 1000)}
           </span>
           <div className="ml-auto flex items-center gap-2">
+            {/* Safe Zone Toggle Button */}
+            <Button
+              size="icon"
+              variant={safeZonesEnabled ? 'subtle' : 'ghost'}
+              className={safeZonesEnabled ? 'text-accent border-accent' : ''}
+              onClick={() => setSafeZonesEnabled((v) => !v)}
+              aria-label="Toggle broadcast safe zones"
+              title="Toggle broadcast safe zones (Action 90% & Title 80%)"
+            >
+              <ShieldAlert size={15} />
+            </Button>
+
+            {/* Audio Level Meter */}
+            <div
+              className="flex items-center gap-0.5 px-1 py-1 rounded bg-panel border border-border"
+              title={`Audio Level: ${muted || volume === 0 ? 'Muted' : `${volume}%`}`}
+            >
+              {[1, 2, 3, 4, 5, 6].map((bar) => {
+                const effectiveVol = muted ? 0 : volume;
+                const threshold = bar * 16;
+                const isActive = isPlaying && effectiveVol >= threshold;
+                const colorClass =
+                  bar <= 3 ? 'active-green' : bar <= 5 ? 'active-yellow' : 'active-red';
+                return (
+                  <div
+                    key={bar}
+                    className={`meter-led ${isActive ? colorClass : ''}`}
+                  />
+                );
+              })}
+            </div>
+
             <button
               type="button"
               onClick={() => setMuted((value) => !value)}

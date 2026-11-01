@@ -1026,6 +1026,24 @@ const ClipBlock = memo(function ClipBlock({
         </span>
       )}
 
+      {/* Keyframe Markers on Clip */}
+      {item.keyframes && item.keyframes.length > 0 && (
+        <div className="absolute bottom-1 left-0 right-0 h-2 pointer-events-none z-15 overflow-hidden">
+          {item.keyframes.map((kf) => {
+            const kfLeft = (kf.timeMs / renderDurationMs) * 100;
+            if (kfLeft < 0 || kfLeft > 100) return null;
+            return (
+              <span
+                key={kf.id}
+                className="keyframe-diamond absolute -translate-x-1/2 bottom-0"
+                style={{ left: `${kfLeft}%` }}
+                title={`Keyframe: ${kf.property} at ${formatPreciseTime(kf.timeMs / 1000)}`}
+              />
+            );
+          })}
+        </div>
+      )}
+
       {/* Right Trim Handle */}
       {!isLocked && (
         <span
