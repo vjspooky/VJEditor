@@ -18,7 +18,7 @@ export function CanvasPreview() {
   const audioRefs = useRef(new Map<string, HTMLAudioElement>());
   const [volume, setVolume] = useState(80);
   const [muted, setMuted] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [failedElementIds, setFailedElementIds] = useState<Set<string>>(new Set());
   const [drag, setDrag] = useState<{ id: string; startX: number; startY: number; x: number; y: number } | null>(null);
 
   const assets = editorState.snapshot.media;
@@ -226,7 +226,7 @@ export function CanvasPreview() {
                 }}
                 onPointerDown={(event) => startDrag(event, element)}
               >
-                {element.type === 'video' && src ? (
+                {element.type === 'video' && src && !failedElementIds.has(element.id) ? (
                   <video
                     ref={(node) => {
                       if (node) mediaRefs.current.set(element.id, node);
@@ -251,21 +251,33 @@ export function CanvasPreview() {
                     onPlay={() => dispatch({ type: 'set-playing', playing: true })}
                     onPause={() => dispatch({ type: 'set-playing', playing: false })}
                     onEnded={() => dispatch({ type: 'set-playing', playing: false })}
-                    onError={() => setError('Unable to preview this video. The file may be damaged or unsupported.')}
+                    onError={() => {
+                      setFailedElementIds((prev) => new Set(prev).add(element.id));
+                    }}
                   />
-                ) : element.type === 'image' && src ? (
+                ) : element.type === 'image' && src && !failedElementIds.has(element.id) ? (
                   <img
                     src={src}
                     alt={asset.name}
                     className="h-full w-full object-contain pointer-events-none"
-                    onError={() => setError('Unable to preview this image.')}
+                    onError={() => {
+                      setFailedElementIds((prev) => new Set(prev).add(element.id));
+                    }}
                   />
                 ) : (
                   <div
-                    className="h-full w-full grid place-items-center text-xs text-muted"
-                    style={{ background: asset.thumbnailColor }}
+                    className="h-full w-full flex flex-col items-center justify-center p-4 text-center select-none"
+                    style={{ background: asset.thumbnailColor || '#1e3a5f' }}
                   >
-                    {asset.name}
+                    <div className="h-10 w-10 rounded-full bg-white/20 backdrop-blur-sm grid place-items-center mb-2 shadow-lg">
+                      <Play size={18} className="text-white fill-white ml-0.5" />
+                    </div>
+                    <p className="text-xs font-semibold text-white drop-shadow truncate max-w-full px-2">
+                      {asset.name}
+                    </p>
+                    <span className="text-[10px] text-white/70 mt-0.5">
+                      {asset.type.toUpperCase()}
+                    </span>
                   </div>
                 )}
                 {selected ? (
@@ -404,11 +416,6 @@ export function CanvasPreview() {
               Add media, text, or captions to preview on the canvas
             </p>
           )}
-          {error ? (
-            <div className="absolute inset-x-3 bottom-3 rounded-lg bg-danger/90 px-3 py-2 text-xs text-white">
-              {error}
-            </div>
-          ) : null}
         </div>
       </div>
       <div className="shrink-0 border-t border-border bg-app-elevated px-3 py-2 space-y-2">

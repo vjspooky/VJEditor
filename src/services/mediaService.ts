@@ -7,6 +7,60 @@ import { getMediaType } from '@/utils/media';
 const MEDIA_KEY = 'media-assets';
 const sessionUrls = new Map<string, string>();
 
+// ── IndexedDB Media Blob Storage ──────────────────────────────────────────────
+
+const DB_NAME = 'vjeditor_media_db';
+const STORE_NAME = 'media_blobs';
+
+function openMediaDb(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    if (typeof indexedDB === 'undefined') return reject(new Error('IndexedDB unavailable'));
+    const req = indexedDB.open(DB_NAME, 1);
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains(STORE_NAME)) {
+        db.createObjectStore(STORE_NAME);
+      }
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function saveMediaBlob(id: string, file: Blob): Promise<void> {
+  try {
+    const db = await openMediaDb();
+    const tx = db.transaction(STORE_NAME, 'readwrite');
+    tx.objectStore(STORE_NAME).put(file, id);
+  } catch {
+    // Ignore if IndexedDB is blocked
+  }
+}
+
+async function loadMediaBlob(id: string): Promise<Blob | null> {
+  try {
+    const db = await openMediaDb();
+    const tx = db.transaction(STORE_NAME, 'readonly');
+    const req = tx.objectStore(STORE_NAME).get(id);
+    return new Promise((resolve) => {
+      req.onsuccess = () => resolve((req.result as Blob) ?? null);
+      req.onerror = () => resolve(null);
+    });
+  } catch {
+    return null;
+  }
+}
+
+async function deleteMediaBlob(id: string): Promise<void> {
+  try {
+    const db = await openMediaDb();
+    const tx = db.transaction(STORE_NAME, 'readwrite');
+    tx.objectStore(STORE_NAME).delete(id);
+  } catch {
+    // Ignore
+  }
+}
+
 export interface MediaStorageProvider {
   create(file: File): MediaAsset;
   list(): MediaAsset[];
@@ -25,12 +79,22 @@ function persistAssets(assets: MediaAsset[]): void {
 }
 
 function normalizeAsset(asset: MediaAsset): MediaAsset {
+  let url = sessionUrls.get(asset.id) ?? asset.url ?? asset.src;
+  if (!url && typeof window !== 'undefined') {
+    void loadMediaBlob(asset.id).then((blob) => {
+      if (blob && !sessionUrls.has(asset.id)) {
+        const restoredUrl = URL.createObjectURL(blob);
+        sessionUrls.set(asset.id, restoredUrl);
+      }
+    });
+  }
   return {
     ...asset,
     status: asset.status ?? 'ready',
     projectIds: asset.projectIds ?? [],
     updatedAt: asset.updatedAt ?? asset.createdAt,
-    url: sessionUrls.get(asset.id),
+    url: url ?? undefined,
+    src: url ?? undefined,
   };
 }
 
@@ -73,6 +137,7 @@ export const mediaService: MediaStorageProvider & {
       projectIds: [],
     };
     sessionUrls.set(asset.id, url);
+    void saveMediaBlob(asset.id, file);
     persistAssets([...storedAssets(), asset]);
 
     // Probe the real duration from the uploaded file and update the stored asset
@@ -113,6 +178,7 @@ export const mediaService: MediaStorageProvider & {
     const url = sessionUrls.get(id);
     if (url) URL.revokeObjectURL(url);
     sessionUrls.delete(id);
+    void deleteMediaBlob(id);
     persistAssets(storedAssets().filter((asset) => asset.id !== id));
     for (const project of projectService.list()) {
       if (!project.media.some((asset) => asset.id === id)) continue;
@@ -175,10 +241,9 @@ function probeFileDuration(blobUrl: string, type: 'video' | 'audio'): Promise<nu
     el.preload = 'metadata';
     el.onloadedmetadata = () => {
       resolve(el.duration ?? null);
-      URL.revokeObjectURL(el.src); // revoke only the temp element's src
       el.src = '';
     };
     el.onerror = () => resolve(null);
     el.src = blobUrl;
   });
-}
+}

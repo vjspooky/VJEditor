@@ -9,6 +9,8 @@ export const seedMedia: MediaAsset[] = [
     width: 1920,
     height: 1080,
     thumbnailColor: '#1e3a5f',
+    url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+    src: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
     createdAt: '2026-09-01T10:00:00.000Z',
   },
   {
@@ -19,6 +21,8 @@ export const seedMedia: MediaAsset[] = [
     width: 1920,
     height: 1080,
     thumbnailColor: '#3d4a28',
+    url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
+    src: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
     createdAt: '2026-09-02T14:20:00.000Z',
   },
   {
@@ -29,6 +33,8 @@ export const seedMedia: MediaAsset[] = [
     width: 1920,
     height: 1080,
     thumbnailColor: '#3a2a4a',
+    url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4',
+    src: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4',
     createdAt: '2026-09-03T09:12:00.000Z',
   },
   {
@@ -38,6 +44,8 @@ export const seedMedia: MediaAsset[] = [
     width: 1080,
     height: 1350,
     thumbnailColor: '#2a3f66',
+    url: 'https://picsum.photos/1080/1350',
+    src: 'https://picsum.photos/1080/1350',
     createdAt: '2026-09-03T11:00:00.000Z',
   },
   {
@@ -47,6 +55,8 @@ export const seedMedia: MediaAsset[] = [
     width: 1024,
     height: 1024,
     thumbnailColor: '#4f8cff',
+    url: 'https://picsum.photos/1024/1024',
+    src: 'https://picsum.photos/1024/1024',
     createdAt: '2026-09-04T08:40:00.000Z',
   },
   {
@@ -55,6 +65,8 @@ export const seedMedia: MediaAsset[] = [
     type: 'audio',
     durationMs: 42000,
     thumbnailColor: '#1f4a3c',
+    url: 'https://actions.google.com/sounds/v1/ambiences/outdoor_theme_park.ogg',
+    src: 'https://actions.google.com/sounds/v1/ambiences/outdoor_theme_park.ogg',
     createdAt: '2026-09-04T16:05:00.000Z',
   },
   {
@@ -63,6 +75,8 @@ export const seedMedia: MediaAsset[] = [
     type: 'audio',
     durationMs: 60000,
     thumbnailColor: '#4a3a1f',
+    url: 'https://actions.google.com/sounds/v1/ambiences/outdoor_theme_park.ogg',
+    src: 'https://actions.google.com/sounds/v1/ambiences/outdoor_theme_park.ogg',
     createdAt: '2026-09-05T12:00:00.000Z',
   },
 ];
