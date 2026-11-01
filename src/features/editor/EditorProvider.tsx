@@ -37,7 +37,7 @@ export function EditorProvider({
   projectId: string;
   children: ReactNode;
 }) {
-  const [state, dispatch] = useReducer(editorReducer, undefined, createInitialEditorState);
+  const [state, dispatch] = useReducer(editorReducer, projectId, createInitialEditorState);
 
   useEffect(() => {
     const stored = projectService.get(projectId);

@@ -49,8 +49,9 @@ const SIDEBAR_ITEMS: SidebarItem[] = [
 
 export function EditorWorkspace() {
   const { state } = useEditor();
+  const validProjectId = state.projectId || 'proj_travel';
   return (
-    <CanvasProvider projectId={state.projectId} aspectRatio={state.aspectRatio}>
+    <CanvasProvider key={validProjectId} projectId={validProjectId} aspectRatio={state.aspectRatio || '16:9'}>
       <EditorWorkspaceContent />
     </CanvasProvider>
   );

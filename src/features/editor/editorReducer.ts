@@ -16,6 +16,7 @@ import type {
 import { createId } from '@/utils/id';
 import { cloneTracks, findItem, isCompatibleTrack, projectDurationMs, rippleShiftItems } from '@/utils/timeline';
 import { snapMsToFrame } from '@/utils/frame';
+import { projectService } from '@/services/projectService';
 
 export type LeftPanelId =
   | 'media'
@@ -1363,11 +1364,46 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
   }
 }
 
-export function createInitialEditorState(): EditorState {
+export function createInitialEditorState(initialProjectId?: string): EditorState {
+  const targetId = initialProjectId || 'proj_travel';
+  const stored = projectService.get(targetId) || projectService.get('proj_travel');
+  if (stored) {
+    const firstId = firstItemId(stored.tracks);
+    return {
+      projectId: stored.project.id,
+      aspectRatio: stored.project.aspectRatio,
+      snapshot: {
+        name: stored.project.name,
+        duration: stored.project.duration,
+        tracks: stored.tracks,
+        media: stored.media,
+      },
+      past: [],
+      future: [],
+      clipboard: [],
+      exportJobs: [],
+      ui: {
+        selectedItemId: firstId,
+        selectedItemIds: firstId ? [firstId] : [],
+        playheadMs: 0,
+        isPlaying: false,
+        volume: 80,
+        zoom: 45,
+        activeLeftPanel: 'media',
+        isSaved: true,
+        editingMode: 'select',
+        rippleEnabled: false,
+        frameSnapEnabled: true,
+        splitAllTracks: false,
+        fps: 30,
+      },
+    };
+  }
+
   return {
     projectId: '',
     aspectRatio: '16:9',
-    snapshot: { name: 'Untitled', duration: 30, tracks: [], media: [] },
+    snapshot: { name: 'Alpine Lake Sunrise', duration: 16, tracks: [], media: [] },
     past: [],
     future: [],
     clipboard: [],
@@ -1378,7 +1414,7 @@ export function createInitialEditorState(): EditorState {
       playheadMs: 0,
       isPlaying: false,
       volume: 80,
-      zoom: 48,
+      zoom: 45,
       activeLeftPanel: 'media',
       isSaved: true,
       editingMode: 'select',
