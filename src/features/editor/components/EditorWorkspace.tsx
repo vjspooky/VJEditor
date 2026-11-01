@@ -243,7 +243,16 @@ function EditorWorkspaceContent() {
             <span className="text-xs font-semibold text-fg flex items-center gap-1.5">
               Player
             </span>
-            <span className="text-[11px] font-mono text-muted">{state.aspectRatio}</span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[11px] text-muted">Aspect:</span>
+              <span className="text-[11px] font-medium text-accent bg-app px-2 py-0.5 rounded border border-border">
+                {state.aspectRatio === '16:9'
+                  ? '16:9 (Landscape YouTube)'
+                  : state.aspectRatio === '9:16'
+                    ? '9:16 (Portrait Shorts)'
+                    : state.aspectRatio}
+              </span>
+            </div>
           </div>
           <div className="flex-1 min-h-0 flex flex-col">
             <CanvasPreview />

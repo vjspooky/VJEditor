@@ -18,27 +18,32 @@ import {
   Navigate,
   Route,
   Routes,
-  useLocation,
 } from 'react-router-dom';
-import type { ReactNode } from 'react';
 
 const SESSION_KEY = 'vjeditor_session';
 
 export default function App() {
   const isGitHubPages =
     import.meta.env.VITE_GITHUB_PAGES === 'true' ||
-    typeof window !== 'undefined' && (
-      window.location.hostname.endsWith('github.io') ||
-      window.location.pathname.startsWith('/VJEditor')
-    );
+    (typeof window !== 'undefined' &&
+      (window.location.hostname.endsWith('github.io') ||
+        window.location.pathname.startsWith('/VJEditor')));
   const Router = isGitHubPages ? HashRouter : BrowserRouter;
+
+  // Auto-initialize session for instant editor access
+  if (typeof window !== 'undefined' && !localStorage.getItem(SESSION_KEY)) {
+    localStorage.setItem(SESSION_KEY, 'true');
+  }
 
   return (
     <Router>
       <Routes>
-        <Route path="/" element={<LandingPage />} />
+        <Route path="/" element={<EditorPage />} />
+        <Route path="/editor" element={<EditorPage />} />
+        <Route path="/editor/:projectId" element={<EditorPage />} />
+        <Route path="/landing" element={<LandingPage />} />
         <Route path="/login" element={<AuthPage />} />
-        <Route path="/dashboard" element={<RequireAuth><AppLayout /></RequireAuth>}>
+        <Route path="/dashboard" element={<AppLayout />}>
           <Route index element={<DashboardHomePage />} />
           <Route path="projects" element={<DashboardProjectsPage />} />
           <Route path="templates" element={<DashboardTemplatesPage />} />
@@ -46,19 +51,10 @@ export default function App() {
           <Route path="media" element={<DashboardMediaPage />} />
           <Route path="settings" element={<DashboardSettingsPage />} />
         </Route>
-        <Route path="/projects/new" element={<RequireAuth><NewProjectPage /></RequireAuth>} />
-        <Route path="/media" element={<RequireAuth><AppLayout><MediaPage /></AppLayout></RequireAuth>} />
-        <Route path="/editor/:projectId" element={<RequireAuth><EditorPage /></RequireAuth>} />
+        <Route path="/projects/new" element={<NewProjectPage />} />
+        <Route path="/media" element={<AppLayout><MediaPage /></AppLayout>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Router>
   );
-}
-
-function RequireAuth({ children }: { children: ReactNode }) {
-  const location = useLocation();
-  if (localStorage.getItem(SESSION_KEY) !== 'true') {
-    return <Navigate to="/login" replace state={{ from: location.pathname }} />;
-  }
-  return children;
 }
