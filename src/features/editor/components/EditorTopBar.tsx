@@ -1,8 +1,9 @@
 import { Button } from '@/components/ui/Button';
 import { Logo } from '@/components/ui/Logo';
 import { useEditor } from '@/features/editor/EditorProvider';
+import { CommandBar } from '@/features/editor/components/CommandBar';
 import { ExportModal } from '@/features/editor/components/ExportModal';
-import { Download, Redo2, Save, Undo2 } from 'lucide-react';
+import { Download, Redo2, Save, Search, Undo2 } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -10,6 +11,7 @@ export function EditorTopBar() {
   const { state, dispatch, save } = useEditor();
   const [editing, setEditing] = useState(false);
   const [exportModalOpen, setExportModalOpen] = useState(false);
+  const [commandBarOpen, setCommandBarOpen] = useState(false);
   const navigate = useNavigate();
 
   return (
@@ -40,6 +42,17 @@ export function EditorTopBar() {
         )}
 
         <div className="ml-auto flex items-center gap-1.5">
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => setCommandBarOpen(true)}
+            className="text-muted hover:text-fg text-xs gap-1 px-2 border border-border"
+            title="Open Command Bar (Ctrl+K)"
+          >
+            <Search size={13} />
+            <span className="hidden md:inline font-mono text-[11px]">⌘K</span>
+          </Button>
+
           <Button
             size="icon"
             variant="ghost"
@@ -85,6 +98,7 @@ export function EditorTopBar() {
         </div>
       </header>
 
+      <CommandBar isOpen={commandBarOpen} onClose={() => setCommandBarOpen(false)} />
       {exportModalOpen ? <ExportModal onClose={() => setExportModalOpen(false)} /> : null}
     </>
   );

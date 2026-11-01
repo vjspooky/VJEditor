@@ -218,6 +218,123 @@ export function PropertiesPanel() {
         </div>
       </div>
 
+      {/* Transform & Speed Controls */}
+      {selected.kind === 'video' ? (
+        <div className="space-y-3 border-t border-border pt-3">
+          <h3 className="text-xs uppercase tracking-wider text-muted font-medium">Transform & Speed</h3>
+
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-[11px] text-muted">Position X</label>
+                <button
+                  type="button"
+                  title="Add keyframe for positionX"
+                  onClick={() => addKeyframeAtPlayhead('positionX', selected.positionX ?? 0)}
+                  className={`cursor-pointer transition-colors ${hasKeyframesFor('positionX') ? 'text-accent' : 'text-muted hover:text-fg'}`}
+                >
+                  <Diamond size={11} />
+                </button>
+              </div>
+              <input
+                type="number"
+                disabled={isLocked}
+                value={Math.round(selected.positionX ?? 0)}
+                onChange={(e) => patchItem({ positionX: Number(e.target.value) })}
+                className="w-full h-8 rounded-lg border border-border bg-panel px-2 text-xs text-fg outline-none disabled:opacity-60"
+              />
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-[11px] text-muted">Position Y</label>
+                <button
+                  type="button"
+                  title="Add keyframe for positionY"
+                  onClick={() => addKeyframeAtPlayhead('positionY', selected.positionY ?? 0)}
+                  className={`cursor-pointer transition-colors ${hasKeyframesFor('positionY') ? 'text-accent' : 'text-muted hover:text-fg'}`}
+                >
+                  <Diamond size={11} />
+                </button>
+              </div>
+              <input
+                type="number"
+                disabled={isLocked}
+                value={Math.round(selected.positionY ?? 0)}
+                onChange={(e) => patchItem({ positionY: Number(e.target.value) })}
+                className="w-full h-8 rounded-lg border border-border bg-panel px-2 text-xs text-fg outline-none disabled:opacity-60"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-[11px] text-muted">Scale (%)</label>
+                <button
+                  type="button"
+                  title="Add keyframe for scale"
+                  onClick={() => addKeyframeAtPlayhead('scale', (selected.scale ?? 1) * 100)}
+                  className={`cursor-pointer transition-colors ${hasKeyframesFor('scale') ? 'text-accent' : 'text-muted hover:text-fg'}`}
+                >
+                  <Diamond size={11} />
+                </button>
+              </div>
+              <input
+                type="number"
+                min={10}
+                max={500}
+                disabled={isLocked}
+                value={Math.round((selected.scale ?? 1) * 100)}
+                onChange={(e) => patchItem({ scale: Number(e.target.value) / 100 })}
+                className="w-full h-8 rounded-lg border border-border bg-panel px-2 text-xs text-fg outline-none disabled:opacity-60"
+              />
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-[11px] text-muted">Rotation (°)</label>
+                <button
+                  type="button"
+                  title="Add keyframe for rotation"
+                  onClick={() => addKeyframeAtPlayhead('rotation', selected.rotation ?? 0)}
+                  className={`cursor-pointer transition-colors ${hasKeyframesFor('rotation') ? 'text-accent' : 'text-muted hover:text-fg'}`}
+                >
+                  <Diamond size={11} />
+                </button>
+              </div>
+              <input
+                type="number"
+                disabled={isLocked}
+                value={Math.round(selected.rotation ?? 0)}
+                onChange={(e) => patchItem({ rotation: Number(e.target.value) })}
+                className="w-full h-8 rounded-lg border border-border bg-panel px-2 text-xs text-fg outline-none disabled:opacity-60"
+              />
+            </div>
+          </div>
+
+          {/* Speed multiplier */}
+          <div>
+            <label className="block text-[11px] text-muted mb-1">Playback Speed</label>
+            <select
+              disabled={isLocked}
+              value={selected.speed ?? 1}
+              onChange={(e) => patchItem({ speed: Number(e.target.value) })}
+              className="w-full h-8 rounded-lg border border-border bg-panel px-2 text-xs text-fg outline-none cursor-pointer disabled:opacity-60"
+            >
+              <option value={0.25}>0.25x (Slow Motion)</option>
+              <option value={0.5}>0.5x</option>
+              <option value={0.75}>0.75x</option>
+              <option value={1}>1.0x (Normal)</option>
+              <option value={1.25}>1.25x</option>
+              <option value={1.5}>1.5x</option>
+              <option value={2}>2.0x (Fast)</option>
+              <option value={4}>4.0x (Timelapse)</option>
+            </select>
+          </div>
+        </div>
+      ) : null}
+
       {/* Source Timing Controls (Media backed) */}
       {(selected.sourceStartMs !== undefined || selected.mediaId) ? (
         <div className="space-y-3 border-t border-border pt-3">
