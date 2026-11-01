@@ -4,9 +4,9 @@ import path from 'node:path'
 import { defineConfig } from 'vite'
 
 export default defineConfig({
-  base: process.env.VITE_GITHUB_PAGES?.trim() === 'true' ? './' : '/',
+  base: './',
   define: {
-    'import.meta.env.VITE_GITHUB_PAGES': JSON.stringify(process.env.VITE_GITHUB_PAGES?.trim() ?? 'false'),
+    'import.meta.env.VITE_GITHUB_PAGES': JSON.stringify('true'),
   },
   plugins: [react(), tailwindcss()],
   resolve: {
