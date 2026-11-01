@@ -49,8 +49,11 @@ export function formatRelativeTime(iso: string): string {
   return new Date(iso).toLocaleDateString();
 }
 
-export function aspectToCss(ratio: string): string {
-  const [w, h] = ratio.split(':').map(Number);
-  if (!w || !h) return '16 / 9';
+export function aspectToCss(ratio: string | undefined | null): string {
+  if (!ratio) return '16 / 9';
+  const parts = String(ratio).split(':').map(Number);
+  const w = parts[0];
+  const h = parts[1];
+  if (!w || !h || Number.isNaN(w) || Number.isNaN(h)) return '16 / 9';
   return `${w} / ${h}`;
 }

@@ -11,12 +11,17 @@ const CANVAS_SIZES: Record<AspectRatio, { width: number; height: number }> = {
   '4:5': { width: 1080, height: 1350 },
 };
 
-export function canvasSize(aspectRatio: AspectRatio) {
-  return CANVAS_SIZES[aspectRatio];
+export function canvasSize(aspectRatio: AspectRatio | string | undefined | null): { width: number; height: number } {
+  if (!aspectRatio || !(aspectRatio in CANVAS_SIZES)) {
+    return CANVAS_SIZES['16:9'];
+  }
+  return CANVAS_SIZES[aspectRatio as AspectRatio];
 }
 
-export function createCanvasSettings(aspectRatio: AspectRatio): CanvasSettings {
-  return { ...canvasSize(aspectRatio), aspectRatio, background: '#08090c', zoom: 100 };
+export function createCanvasSettings(aspectRatio: AspectRatio | string | undefined | null): CanvasSettings {
+  const size = canvasSize(aspectRatio);
+  const validRatio = (aspectRatio && aspectRatio in CANVAS_SIZES ? aspectRatio : '16:9') as AspectRatio;
+  return { ...size, aspectRatio: validRatio, background: '#08090c', zoom: 100 };
 }
 
 export const editorService = {
