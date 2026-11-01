@@ -15,8 +15,17 @@ const API_ENABLED = Boolean(import.meta.env.VITE_API_URL);
 
 function loadAll(): StoredProject[] {
   const existing = readJson<unknown>(PROJECTS_KEY, null);
-  if (Array.isArray(existing) && existing.every(isStoredProject)) return existing;
   const seeded = seedStoredProjects();
+  if (Array.isArray(existing) && existing.every(isStoredProject)) {
+    // Always sync proj_travel with the latest seeded Alpine Lake Sunrise tracks & clips
+    const travelSeed = seeded.find((p) => p.project.id === 'proj_travel');
+    if (travelSeed) {
+      const idx = existing.findIndex((p) => p.project.id === 'proj_travel');
+      if (idx >= 0) existing[idx] = travelSeed;
+      else existing.unshift(travelSeed);
+    }
+    return existing;
+  }
   writeJson(PROJECTS_KEY, seeded);
   return seeded;
 }
