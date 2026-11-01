@@ -1,263 +1,155 @@
-import { Button } from '@/components/ui/Button';
 import { useEditor } from '@/features/editor/EditorProvider';
 import { useCanvas } from '@/features/editor/CanvasProvider';
-import type { MediaAsset, MediaType } from '@/types';
-import { cx } from '@/utils/cx';
-import { formatMediaDuration } from '@/utils/media';
-import {
-  Bot,
-  FolderDown,
-  FolderKanban,
-  FolderPlus,
-  Mic,
-  Plus,
-  Sparkles,
-  Upload,
-  Video,
-} from 'lucide-react';
-import { useMemo, useState, type DragEvent } from 'react';
+import type { MediaAsset } from '@/types';
+import { Plus, Upload, Radio } from 'lucide-react';
+import { useRef, type ChangeEvent } from 'react';
 
-type SubNav = 'import' | 'media' | 'ai' | 'library';
+interface MediaItemMeta {
+  tag: string;
+  fps: number;
+  size: string;
+}
 
-const filterTabs: { id: MediaType | 'all'; label: string }[] = [
-  { id: 'all', label: 'All' },
-  { id: 'video', label: 'Videos' },
-  { id: 'image', label: 'Images' },
-  { id: 'audio', label: 'Audio' },
-];
+const MEDIA_METADATA: Record<string, MediaItemMeta> = {
+  media_alpine: { tag: 'Travel', fps: 30, size: '12.4 MB' },
+  media_cyberpunk: { tag: 'Cinematic', fps: 30, size: '18.1 MB' },
+  media_presenter: { tag: 'Green Screen', fps: 30, size: '15.6 MB' },
+};
 
 export function MediaPanel() {
   const { state, dispatch, addUploadedFiles } = useEditor();
   const { addMedia } = useCanvas();
-  const [subNav, setSubNav] = useState<SubNav>('import');
-  const [filter, setFilter] = useState<(typeof filterTabs)[number]['id']>('all');
-  const [dragging, setDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const items = useMemo(
-    () => state.snapshot.media.filter((asset) => filter === 'all' || asset.type === filter),
-    [state.snapshot.media, filter],
-  );
+  const mediaList = state.snapshot.media.slice(0, 3);
 
-  function onDrop(event: DragEvent) {
-    event.preventDefault();
-    setDragging(false);
-    if (event.dataTransfer.files.length) addUploadedFiles(event.dataTransfer.files);
-  }
+  const handleFileUpload = (e: ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      addUploadedFiles(e.target.files);
+    }
+  };
+
+  const handleAddMedia = (asset: MediaAsset) => {
+    addMedia(asset.id, asset.type === 'image' ? 'image' : 'video');
+    // Also select the media clip in timeline if available
+    const existing = state.snapshot.tracks
+      .flatMap((t) => t.items)
+      .find((i) => i.mediaId === asset.id);
+    if (existing) {
+      dispatch({ type: 'select', itemId: existing.id });
+    }
+  };
 
   return (
-    <div className="flex h-full bg-app-elevated select-none">
-      {/* CapCut Sub-Sidebar */}
-      <div className="w-24 shrink-0 border-r border-border bg-panel flex flex-col py-2 gap-1 text-[11px]">
+    <div className="flex flex-col h-full bg-[#12141a] text-[#e2e8f0] select-none p-3 overflow-hidden">
+      {/* Hidden file input for Import Files */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        multiple
+        accept="video/*,image/*,audio/*"
+        className="hidden"
+        onChange={handleFileUpload}
+      />
+
+      {/* Header */}
+      <div className="flex items-center justify-between pb-3">
+        <h2 className="text-xs font-bold tracking-wider text-slate-100 uppercase">
+          Media Assets
+        </h2>
+        <span className="text-[11px] font-medium bg-[#181b24] text-slate-400 px-2.5 py-0.5 rounded-full border border-[#222634]">
+          {mediaList.length} items
+        </span>
+      </div>
+
+      {/* Action Buttons Row */}
+      <div className="flex items-center gap-2 mb-3">
         <button
           type="button"
-          onClick={() => setSubNav('import')}
-          className={cx(
-            'flex flex-col items-center gap-1 py-2 px-1 rounded-lg mx-1 cursor-pointer transition-colors',
-            subNav === 'import' ? 'bg-panel-hover text-accent font-semibold' : 'text-muted hover:text-fg',
-          )}
+          onClick={() => fileInputRef.current?.click()}
+          className="flex-1 bg-[#181b24] hover:bg-[#222634] border border-[#262c3e] text-slate-200 text-xs py-2 px-3 rounded-full flex items-center justify-center gap-1.5 font-medium cursor-pointer transition-colors shadow-sm"
         >
-          <FolderPlus size={16} />
-          <span>Import</span>
+          <Upload size={13} className="text-slate-300" />
+          <span>Import Files</span>
         </button>
 
         <button
           type="button"
-          onClick={() => setSubNav('media')}
-          className={cx(
-            'flex flex-col items-center gap-1 py-2 px-1 rounded-lg mx-1 cursor-pointer transition-colors',
-            subNav === 'media' ? 'bg-panel-hover text-accent font-semibold' : 'text-muted hover:text-fg',
-          )}
+          onClick={() => dispatch({ type: 'set-panel', panel: 'ai' })}
+          className="flex-1 bg-[#181b24] hover:bg-[#222634] border border-[#262c3e] text-slate-200 text-xs py-2 px-3 rounded-full flex items-center justify-center gap-1.5 font-medium cursor-pointer transition-colors shadow-sm"
         >
-          <FolderKanban size={16} />
-          <span>Project</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => {
-            setSubNav('ai');
-            dispatch({ type: 'set-panel', panel: 'ai' });
-          }}
-          className={cx(
-            'flex flex-col items-center gap-1 py-2 px-1 rounded-lg mx-1 cursor-pointer transition-colors',
-            subNav === 'ai' ? 'bg-panel-hover text-accent font-semibold' : 'text-muted hover:text-fg',
-          )}
-        >
-          <Sparkles size={16} />
-          <span>AI media</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setSubNav('library')}
-          className={cx(
-            'flex flex-col items-center gap-1 py-2 px-1 rounded-lg mx-1 cursor-pointer transition-colors',
-            subNav === 'library' ? 'bg-panel-hover text-accent font-semibold' : 'text-muted hover:text-fg',
-          )}
-        >
-          <FolderDown size={16} />
-          <span>Library</span>
+          <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
+          <span>Record Studio</span>
         </button>
       </div>
 
-      {/* Main Media Content Area */}
-      <div className="flex-1 flex flex-col min-w-0 bg-app overflow-hidden">
-        {/* Big Import Dropzone Card */}
-        <label
-          onDragOver={(e) => {
-            e.preventDefault();
-            setDragging(true);
-          }}
-          onDragLeave={() => setDragging(false)}
-          onDrop={onDrop}
-          className={cx(
-            'm-3 rounded-2xl border border-dashed p-4 text-center cursor-pointer transition-all flex flex-col items-center justify-center gap-1.5 min-h-[110px]',
-            dragging ? 'border-accent bg-accent/15' : 'border-border bg-panel hover:bg-panel-hover hover:border-muted',
-          )}
-        >
-          <div className="h-9 w-9 rounded-full bg-accent/20 grid place-items-center text-accent">
-            <Upload size={18} />
-          </div>
-          <div>
-            <p className="text-xs font-semibold text-fg flex items-center justify-center gap-1">
-              <Plus size={14} className="text-accent" /> Import Media
-            </p>
-            <p className="text-[10px] text-muted mt-0.5">Drag & drop videos, photos, and audio files here</p>
-          </div>
-          <input
-            type="file"
-            accept="video/*,image/*,audio/*"
-            multiple
-            className="hidden"
-            onChange={(e) => {
-              if (e.target.files) addUploadedFiles(e.target.files);
-            }}
-          />
-        </label>
+      {/* Media Cards List */}
+      <div className="flex-1 overflow-y-auto space-y-2.5 pr-0.5">
+        {mediaList.map((asset) => {
+          const meta = MEDIA_METADATA[asset.id] || {
+            tag: asset.type === 'video' ? 'Video' : 'Asset',
+            fps: 30,
+            size: '14.2 MB',
+          };
+          const durationSec = Math.round((asset.durationMs || 8000) / 1000);
 
-        {/* Quick Creation Tool Cards */}
-        <div className="px-3 pb-2 grid grid-cols-3 gap-1.5 text-[10px]">
-          <button
-            type="button"
-            onClick={() => dispatch({ type: 'set-panel', panel: 'ai' })}
-            className="rounded-xl border border-border bg-panel p-2 flex flex-col items-center gap-1 hover:border-accent hover:bg-panel-hover cursor-pointer transition"
-          >
-            <Sparkles size={14} className="text-accent" />
-            <span className="font-medium text-fg">AI media</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => dispatch({ type: 'set-panel', panel: 'ai' })}
-            className="rounded-xl border border-border bg-panel p-2 flex flex-col items-center gap-1 hover:border-accent hover:bg-panel-hover cursor-pointer transition"
-          >
-            <Bot size={14} className="text-emerald-400" />
-            <span className="font-medium text-fg">AI avatars</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => dispatch({ type: 'set-panel', panel: 'audio' })}
-            className="rounded-xl border border-border bg-panel p-2 flex flex-col items-center gap-1 hover:border-accent hover:bg-panel-hover cursor-pointer transition"
-          >
-            <Mic size={14} className="text-amber-400" />
-            <span className="font-medium text-fg">Record</span>
-          </button>
-        </div>
-
-        {/* Filter Tabs */}
-        <div className="px-3 pt-1 pb-2 flex items-center justify-between border-t border-border">
-          <div className="flex gap-1">
-            {filterTabs.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => setFilter(item.id)}
-                className={cx(
-                  'h-6 px-2 rounded-md text-[11px] font-medium cursor-pointer transition',
-                  filter === item.id ? 'bg-accent text-white' : 'text-muted hover:text-fg hover:bg-panel',
-                )}
-              >
-                {item.label}
-              </button>
-            ))}
-          </div>
-          <span className="text-[10px] text-muted">{items.length} files</span>
-        </div>
-
-        {/* Media Assets Grid */}
-        <div className="flex-1 overflow-y-auto p-3 grid grid-cols-2 gap-2.5 content-start">
-          {items.map((asset) => (
-            <MediaCard
+          return (
+            <div
               key={asset.id}
-              asset={asset}
-              onAdd={() => {
-                if (asset.type === 'video' || asset.type === 'image') addMedia(asset.id, asset.type);
-              }}
-              onTimeline={() => dispatch({ type: 'add-media', asset })}
-            />
-          ))}
-          {!items.length && (
-            <div className="col-span-2 py-8 text-center text-xs text-muted">
-              No media files. Click + Import to add videos or photos.
+              onClick={() => handleAddMedia(asset)}
+              className="bg-[#181b24] hover:bg-[#1e2230] border border-[#222634] hover:border-[#2f3549] p-2.5 rounded-xl flex items-center gap-3 transition-all group cursor-pointer shadow-sm"
+            >
+              {/* 16:9 Thumbnail with Duration Badge */}
+              <div className="w-24 h-14 rounded-lg overflow-hidden relative shrink-0 bg-black/60 border border-white/5">
+                {asset.thumbnail ? (
+                  <img
+                    src={asset.thumbnail}
+                    alt={asset.name}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                  />
+                ) : (
+                  <div
+                    className="w-full h-full flex items-center justify-center"
+                    style={{ background: asset.thumbnailColor || '#0e7490' }}
+                  >
+                    <Radio size={16} className="text-white/60" />
+                  </div>
+                )}
+                <span className="absolute bottom-1 right-1 bg-black/85 text-white text-[10px] font-mono px-1 py-0.2 rounded font-medium shadow">
+                  {durationSec}s
+                </span>
+              </div>
+
+              {/* Media Title & Metadata Badges */}
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold text-slate-100 truncate group-hover:text-cyan-400 transition-colors">
+                  {asset.name}
+                </p>
+                <div className="flex items-center gap-2 mt-1.5 text-[10px]">
+                  <span className="bg-[#222634] text-slate-300 px-1.5 py-0.5 rounded font-medium">
+                    {meta.tag}
+                  </span>
+                  <span className="text-slate-400 font-mono">{meta.fps} FPS</span>
+                  <span className="text-slate-400 font-mono">{meta.size}</span>
+                </div>
+              </div>
+
+              {/* Cyan Plus Action Button */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleAddMedia(asset);
+                }}
+                className="w-7 h-7 rounded-lg bg-cyan-500/15 hover:bg-cyan-500 text-cyan-400 hover:text-black flex items-center justify-center transition-colors shrink-0 cursor-pointer"
+                title="Add to Canvas / Timeline"
+              >
+                <Plus size={15} strokeWidth={2.5} />
+              </button>
             </div>
-          )}
-        </div>
+          );
+        })}
       </div>
     </div>
-  );
-}
-
-function MediaCard({ asset, onAdd, onTimeline }: { asset: MediaAsset; onAdd: () => void; onTimeline: () => void }) {
-  const src = asset.src ?? asset.url;
-  return (
-    <article className="group relative rounded-xl border border-border overflow-hidden bg-panel hover:border-accent/80 transition shadow-sm">
-      {/* Visual Thumbnail */}
-      <div className="h-20 relative bg-black/60 overflow-hidden" style={{ background: asset.thumbnailColor }}>
-        {asset.type === 'image' && src ? (
-          <img src={src} alt="" className="h-full w-full object-cover" />
-        ) : asset.type === 'video' && src ? (
-          <video src={src} className="h-full w-full object-cover" muted preload="metadata" />
-        ) : (
-          <div className="h-full w-full grid place-items-center text-muted">
-            <Video size={20} />
-          </div>
-        )}
-
-        {/* Duration badge */}
-        {asset.durationMs ? (
-          <span className="absolute bottom-1 right-1 px-1 py-0.2 rounded bg-black/80 text-[9px] font-mono text-white">
-            {formatMediaDuration(asset.durationMs / 1000)}
-          </span>
-        ) : null}
-
-        {/* Quick Add Overlay Button */}
-        <button
-          type="button"
-          onClick={onTimeline}
-          title="Add to Timeline"
-          className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition cursor-pointer"
-        >
-          <div className="h-8 w-8 rounded-full bg-accent text-white grid place-items-center shadow-lg hover:scale-110 transition">
-            <Plus size={18} />
-          </div>
-        </button>
-      </div>
-
-      {/* Asset Info & Action Buttons */}
-      <div className="p-2">
-        <p className="text-[11px] font-medium text-fg truncate" title={asset.name}>
-          {asset.name}
-        </p>
-        <div className="mt-1.5 grid grid-cols-2 gap-1">
-          <Button size="sm" className="h-6 text-[10px] px-1" onClick={onAdd} disabled={asset.type === 'audio'}>
-            {asset.type === 'audio' ? 'Audio' : 'Canvas'}
-          </Button>
-          <Button size="sm" variant="primary" className="h-6 text-[10px] px-1" onClick={onTimeline}>
-            + Track
-          </Button>
-        </div>
-      </div>
-    </article>
   );
 }

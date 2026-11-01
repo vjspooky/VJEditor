@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="VJEditor — generate, edit and automate videos with one intelligent creative workspace."
+      content="VJEditor — AI-Powered Professional Video Creation Studio"
     />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -14,18 +14,17 @@
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
-    <title>VJEditor — Create. Edit. Automate.</title>
-    <link rel="stylesheet" crossorigin href="./assets/index-C8EaMOl_.css" />
+    <title>VJEditor — AI-Powered Professional Video Creation Studio</title>
+    <link rel="stylesheet" crossorigin href="./assets/index-DPqncfJc.css" />
   </head>
   <body>
     <div id="root"></div>
     <script type="module">
-      // On static deployment (e.g. GitHub Pages serving from repository root),
-      // raw TypeScript .tsx files cannot be executed by the browser. Load compiled bundle.
-      if (location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
-        import('./assets/index-fmX1niya.js');
+      if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
+        import('/src/main.tsx');
+      } else {
+        import('./assets/index-CPcl6EIH.js');
       }
     </script>
-    <script type="module" src="./src/main.tsx"></script>
   </body>
 </html>

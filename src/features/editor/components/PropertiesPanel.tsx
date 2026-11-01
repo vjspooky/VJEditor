@@ -1,771 +1,233 @@
-import { Button } from '@/components/ui/Button';
 import { useEditor } from '@/features/editor/EditorProvider';
-import type { AnimatableProperty, Keyframe, TextAlign, TextAnimation, TextLayer, TimelineItem } from '@/types';
-import { formatPreciseTime } from '@/utils/frame';
-import { createId } from '@/utils/id';
-import {
-  Copy,
-  Diamond,
-  Eye,
-  EyeOff,
-  FileCode,
-  Lock,
-  LockOpen,
-  Trash2,
-  Volume2,
-  VolumeX,
-} from 'lucide-react';
+import { useCanvas } from '@/features/editor/CanvasProvider';
+import type { VideoClip } from '@/types';
+import { MoreVertical, ArrowLeftRight, ArrowUpDown } from 'lucide-react';
 import { useState } from 'react';
-import { ReplaceMediaModal } from './ReplaceMediaModal';
 
-const TEXT_ANIMATIONS: { value: TextAnimation; label: string }[] = [
-  { value: 'none', label: 'None' },
-  { value: 'fade-in', label: 'Fade In' },
-  { value: 'fade-out', label: 'Fade Out' },
-  { value: 'slide-up', label: 'Slide Up' },
-  { value: 'slide-down', label: 'Slide Down' },
-  { value: 'slide-left', label: 'Slide Left' },
-  { value: 'slide-right', label: 'Slide Right' },
-  { value: 'pop', label: 'Pop' },
-  { value: 'typewriter', label: 'Typewriter' },
-];
+type InspectorTab = 'Transform' | 'Speed' | 'Color' | 'GreenScreen' | 'Keyframes';
 
-const FONT_FAMILIES = ['Arial', 'Georgia', 'Helvetica', 'Impact', 'Montserrat', 'Oswald', 'Playfair Display', 'Roboto', 'Times New Roman', 'Verdana'];
+const TABS: InspectorTab[] = ['Transform', 'Speed', 'Color', 'GreenScreen', 'Keyframes'];
 
 export function PropertiesPanel() {
   const { state, dispatch, selected } = useEditor();
-  const [replaceModalOpen, setReplaceModalOpen] = useState(false);
+  const { selected: canvasSelected, update: updateCanvas } = useCanvas();
+  const [activeTab, setActiveTab] = useState<InspectorTab>('Transform');
 
-  if (!selected) {
-    return (
-      <aside className="w-[280px] shrink-0 border-l border-border bg-app-elevated p-4 hidden lg:flex flex-col">
-        <h2 className="text-xs uppercase tracking-wider text-muted">Clip Properties</h2>
-        <div className="flex-1 grid place-items-center text-center p-6 text-xs text-muted">
-          <div>
-            <p className="font-medium text-fg mb-1">No Clip Selected</p>
-            <p>Click on any clip in the timeline to view and adjust its properties.</p>
-          </div>
-        </div>
-      </aside>
-    );
-  }
+  // Fallback to active video clip in timeline (Alpine Lake Sunrise) if none selected
+  const activeItem =
+    selected ||
+    state.snapshot.tracks
+      .flatMap((t) => t.items)
+      .find((i) => i.id === 'clip_alpine') ||
+    state.snapshot.tracks.flatMap((t) => t.items)[0];
 
-  const tracks = state.snapshot.tracks;
-  const currentTrack = tracks.find((t) => t.id === selected.trackId);
-  const compatibleTracks = tracks.filter((t) => {
-    if (selected.kind === 'video') return t.kind === 'video';
-    if (selected.kind === 'audio') return t.kind === 'audio';
-    if (selected.kind === 'text') return t.kind === 'text';
-    if (selected.kind === 'caption') return t.kind === 'caption';
-    return false;
-  });
+  const videoClip: VideoClip | undefined =
+    activeItem && activeItem.kind === 'video' ? (activeItem as VideoClip) : undefined;
 
-  const mediaAsset = selected.mediaId
-    ? state.snapshot.media.find((m) => m.id === selected.mediaId)
-    : undefined;
+  const clipName = activeItem?.name || 'Alpine Lake Sunrise';
+  const posX = Math.round(videoClip?.positionX ?? canvasSelected?.x ?? 0);
+  const posY = Math.round(videoClip?.positionY ?? canvasSelected?.y ?? 0);
+  const scale = Math.round(videoClip?.scale ?? (canvasSelected?.scaleX ? canvasSelected.scaleX * 100 : 100));
+  const rotation = Math.round(videoClip?.rotation ?? canvasSelected?.rotation ?? 0);
+  const opacity = Math.round(videoClip?.opacity ?? (canvasSelected?.opacity ? canvasSelected.opacity * 100 : 100));
 
-  const patchItem = (patch: Partial<TimelineItem>) => {
-    dispatch({ type: 'update-item', itemId: selected.id, patch });
+  const patchClip = (patch: Partial<VideoClip>) => {
+    if (videoClip) {
+      dispatch({ type: 'update-item', itemId: videoClip.id, patch });
+    }
   };
 
-  const endMs = selected.startMs + selected.durationMs;
-  const isLocked = Boolean(selected.locked || currentTrack?.locked);
-
-  // Keyframe helpers
-  const addKeyframeAtPlayhead = (property: AnimatableProperty, value: number) => {
-    const timeMs = state.ui.playheadMs - selected.startMs;
-    const kf: Keyframe = {
-      id: createId('kf'),
-      property,
-      timeMs: Math.max(0, timeMs),
-      value,
-      easing: 'easeInOut',
-    };
-    dispatch({ type: 'add-keyframe', itemId: selected.id, keyframe: kf });
+  const handlePositionX = (val: number) => {
+    patchClip({ positionX: val });
+    if (canvasSelected) updateCanvas(canvasSelected.id, { x: val });
   };
 
-  const hasKeyframesFor = (property: AnimatableProperty) =>
-    (selected.keyframes ?? []).some((k) => k.property === property);
+  const handlePositionY = (val: number) => {
+    patchClip({ positionY: val });
+    if (canvasSelected) updateCanvas(canvasSelected.id, { y: val });
+  };
+
+  const handleScale = (val: number) => {
+    patchClip({ scale: val });
+    if (canvasSelected) {
+      updateCanvas(canvasSelected.id, { scaleX: val / 100, scaleY: val / 100 });
+    }
+  };
+
+  const handleRotation = (val: number) => {
+    patchClip({ rotation: val });
+    if (canvasSelected) updateCanvas(canvasSelected.id, { rotation: val });
+  };
+
+  const handleOpacity = (val: number) => {
+    patchClip({ opacity: val });
+    if (canvasSelected) updateCanvas(canvasSelected.id, { opacity: val / 100 });
+  };
+
+  const handleFlipH = () => {
+    handleRotation(rotation === 180 ? 0 : 180);
+  };
+
+  const handleFlipV = () => {
+    handleRotation(rotation === -180 ? 0 : -180);
+  };
 
   return (
-    <aside className="w-[280px] shrink-0 border-l border-border bg-app-elevated p-4 overflow-y-auto hidden lg:flex flex-col gap-4">
+    <aside className="w-[310px] shrink-0 bg-[#12141a] border-l border-[#222634] text-[#e2e8f0] select-none flex flex-col h-full overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between pb-3 border-b border-border">
-        <div className="min-w-0 flex-1">
-          <span className="text-[10px] uppercase tracking-wider font-semibold text-accent">
-            {selected.kind} clip
+      <div className="p-3 border-b border-[#222634] flex items-center justify-between gap-1.5">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="w-2 h-2 rounded-full bg-cyan-400 shrink-0 shadow-[0_0_8px_rgba(6,182,212,0.8)]" />
+          <h2 className="text-xs font-semibold text-slate-100 truncate">
+            {clipName}
+          </h2>
+          <span className="bg-[#1e293b] text-sky-400 text-[10px] font-bold px-1.5 py-0.5 rounded tracking-wide border border-sky-800/40 shrink-0">
+            VIDEO
           </span>
-          <input
-            type="text"
-            disabled={isLocked}
-            value={selected.name}
-            onChange={(e) => patchItem({ name: e.target.value })}
-            className="mt-0.5 w-full bg-transparent font-medium text-sm text-fg outline-none border-b border-transparent hover:border-border focus:border-accent disabled:opacity-60"
-          />
         </div>
-        <div className="flex items-center gap-1 shrink-0 ml-2">
-          <Button
-            size="icon"
-            variant="ghost"
-            onClick={() => dispatch({ type: 'duplicate-selected' })}
-            disabled={isLocked}
-            aria-label="Duplicate clip"
+
+        <div className="flex items-center gap-1.5 shrink-0">
+          <span className="text-[11px] text-emerald-400 border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 rounded-full font-medium">
+            Complete
+          </span>
+          <button
+            type="button"
+            className="text-slate-400 hover:text-white p-1 rounded hover:bg-[#181b24] cursor-pointer"
           >
-            <Copy size={14} />
-          </Button>
-          <Button
-            size="icon"
-            variant="danger"
-            onClick={() => dispatch({ type: 'delete-selected' })}
-            disabled={isLocked}
-            aria-label="Delete clip"
-          >
-            <Trash2 size={14} />
-          </Button>
+            <MoreVertical size={14} />
+          </button>
         </div>
       </div>
 
-      {/* Track & Toggles */}
-      <div className="space-y-3">
-        <label className="block text-xs text-muted">
-          Track
-          <select
-            disabled={isLocked}
-            value={selected.trackId}
-            onChange={(e) => patchItem({ trackId: e.target.value })}
-            className="mt-1 w-full h-8 rounded-lg border border-border bg-panel px-2 text-xs text-fg outline-none disabled:opacity-60"
-          >
-            {compatibleTracks.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name} ({t.kind})
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <div className="grid grid-cols-3 gap-1.5 pt-1">
-          <Button
-            size="sm"
-            variant={selected.locked ? 'subtle' : 'ghost'}
-            className={selected.locked ? 'border-accent text-accent' : ''}
-            onClick={() => patchItem({ locked: !selected.locked })}
-          >
-            {selected.locked ? <Lock size={13} /> : <LockOpen size={13} />}
-            <span>{selected.locked ? 'Locked' : 'Lock'}</span>
-          </Button>
-
-          <Button
-            size="sm"
-            variant={selected.muted ? 'subtle' : 'ghost'}
-            className={selected.muted ? 'border-accent text-accent' : ''}
-            onClick={() => patchItem({ muted: !selected.muted })}
-          >
-            {selected.muted ? <VolumeX size={13} /> : <Volume2 size={13} />}
-            <span>{selected.muted ? 'Muted' : 'Mute'}</span>
-          </Button>
-
-          <Button
-            size="sm"
-            variant={selected.hidden ? 'subtle' : 'ghost'}
-            className={selected.hidden ? 'border-accent text-accent' : ''}
-            onClick={() => patchItem({ hidden: !selected.hidden })}
-          >
-            {selected.hidden ? <EyeOff size={13} /> : <Eye size={13} />}
-            <span>{selected.hidden ? 'Hidden' : 'Show'}</span>
-          </Button>
-        </div>
-      </div>
-
-      {/* Timing Controls */}
-      <div className="space-y-3 border-t border-border pt-3">
-        <h3 className="text-xs uppercase tracking-wider text-muted font-medium">Timing</h3>
-
-        <div className="grid grid-cols-2 gap-2">
-          <div>
-            <label className="block text-[11px] text-muted mb-1">Start (ms)</label>
-            <input
-              type="number"
-              min={0}
-              disabled={isLocked}
-              value={Math.round(selected.startMs)}
-              onChange={(e) => patchItem({ startMs: Number(e.target.value) })}
-              className="w-full h-8 rounded-lg border border-border bg-panel px-2 text-xs text-fg outline-none disabled:opacity-60"
-            />
-            <span className="block text-[10px] text-subtle mt-0.5">
-              {formatPreciseTime(selected.startMs / 1000)}
-            </span>
-          </div>
-
-          <div>
-            <label className="block text-[11px] text-muted mb-1">Duration (ms)</label>
-            <input
-              type="number"
-              min={100}
-              disabled={isLocked}
-              value={Math.round(selected.durationMs)}
-              onChange={(e) => patchItem({ durationMs: Number(e.target.value) })}
-              className="w-full h-8 rounded-lg border border-border bg-panel px-2 text-xs text-fg outline-none disabled:opacity-60"
-            />
-            <span className="block text-[10px] text-subtle mt-0.5">
-              {formatPreciseTime(selected.durationMs / 1000)}
-            </span>
-          </div>
-        </div>
-
-        <div className="flex items-center justify-between text-xs py-1 px-2 rounded-lg bg-panel border border-border">
-          <span className="text-muted">End time:</span>
-          <span className="font-mono text-[11px]">{formatPreciseTime(endMs / 1000)}</span>
-        </div>
-      </div>
-
-      {/* Transform & Speed Controls */}
-      {selected.kind === 'video' ? (
-        <div className="space-y-3 border-t border-border pt-3">
-          <h3 className="text-xs uppercase tracking-wider text-muted font-medium">Transform & Speed</h3>
-
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="text-[11px] text-muted">Position X</label>
-                <button
-                  type="button"
-                  title="Add keyframe for positionX"
-                  onClick={() => addKeyframeAtPlayhead('positionX', selected.positionX ?? 0)}
-                  className={`cursor-pointer transition-colors ${hasKeyframesFor('positionX') ? 'text-accent' : 'text-muted hover:text-fg'}`}
-                >
-                  <Diamond size={11} />
-                </button>
-              </div>
-              <input
-                type="number"
-                disabled={isLocked}
-                value={Math.round(selected.positionX ?? 0)}
-                onChange={(e) => patchItem({ positionX: Number(e.target.value) })}
-                className="w-full h-8 rounded-lg border border-border bg-panel px-2 text-xs text-fg outline-none disabled:opacity-60"
-              />
-            </div>
-
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="text-[11px] text-muted">Position Y</label>
-                <button
-                  type="button"
-                  title="Add keyframe for positionY"
-                  onClick={() => addKeyframeAtPlayhead('positionY', selected.positionY ?? 0)}
-                  className={`cursor-pointer transition-colors ${hasKeyframesFor('positionY') ? 'text-accent' : 'text-muted hover:text-fg'}`}
-                >
-                  <Diamond size={11} />
-                </button>
-              </div>
-              <input
-                type="number"
-                disabled={isLocked}
-                value={Math.round(selected.positionY ?? 0)}
-                onChange={(e) => patchItem({ positionY: Number(e.target.value) })}
-                className="w-full h-8 rounded-lg border border-border bg-panel px-2 text-xs text-fg outline-none disabled:opacity-60"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="text-[11px] text-muted">Scale (%)</label>
-                <button
-                  type="button"
-                  title="Add keyframe for scale"
-                  onClick={() => addKeyframeAtPlayhead('scale', (selected.scale ?? 1) * 100)}
-                  className={`cursor-pointer transition-colors ${hasKeyframesFor('scale') ? 'text-accent' : 'text-muted hover:text-fg'}`}
-                >
-                  <Diamond size={11} />
-                </button>
-              </div>
-              <input
-                type="number"
-                min={10}
-                max={500}
-                disabled={isLocked}
-                value={Math.round((selected.scale ?? 1) * 100)}
-                onChange={(e) => patchItem({ scale: Number(e.target.value) / 100 })}
-                className="w-full h-8 rounded-lg border border-border bg-panel px-2 text-xs text-fg outline-none disabled:opacity-60"
-              />
-            </div>
-
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="text-[11px] text-muted">Rotation (°)</label>
-                <button
-                  type="button"
-                  title="Add keyframe for rotation"
-                  onClick={() => addKeyframeAtPlayhead('rotation', selected.rotation ?? 0)}
-                  className={`cursor-pointer transition-colors ${hasKeyframesFor('rotation') ? 'text-accent' : 'text-muted hover:text-fg'}`}
-                >
-                  <Diamond size={11} />
-                </button>
-              </div>
-              <input
-                type="number"
-                disabled={isLocked}
-                value={Math.round(selected.rotation ?? 0)}
-                onChange={(e) => patchItem({ rotation: Number(e.target.value) })}
-                className="w-full h-8 rounded-lg border border-border bg-panel px-2 text-xs text-fg outline-none disabled:opacity-60"
-              />
-            </div>
-          </div>
-
-          {/* Speed multiplier */}
-          <div>
-            <label className="block text-[11px] text-muted mb-1">Playback Speed</label>
-            <select
-              disabled={isLocked}
-              value={selected.speed ?? 1}
-              onChange={(e) => patchItem({ speed: Number(e.target.value) })}
-              className="w-full h-8 rounded-lg border border-border bg-panel px-2 text-xs text-fg outline-none cursor-pointer disabled:opacity-60"
+      {/* Tabs Row */}
+      <div className="flex items-center border-b border-[#222634] px-2 text-xs font-medium overflow-x-auto scrollbar-none">
+        {TABS.map((tab) => {
+          const isActive = activeTab === tab;
+          return (
+            <button
+              key={tab}
+              type="button"
+              onClick={() => setActiveTab(tab)}
+              className={`py-2.5 px-2.5 text-xs transition-colors relative cursor-pointer shrink-0 ${
+                isActive
+                  ? 'text-cyan-400 font-semibold'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
             >
-              <option value={0.25}>0.25x (Slow Motion)</option>
-              <option value={0.5}>0.5x</option>
-              <option value={0.75}>0.75x</option>
-              <option value={1}>1.0x (Normal)</option>
-              <option value={1.25}>1.25x</option>
-              <option value={1.5}>1.5x</option>
-              <option value={2}>2.0x (Fast)</option>
-              <option value={4}>4.0x (Timelapse)</option>
-            </select>
-          </div>
-        </div>
-      ) : null}
+              {tab}
+              {isActive && (
+                <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-cyan-400 rounded-full" />
+              )}
+            </button>
+          );
+        })}
+      </div>
 
-      {/* Source Timing Controls (Media backed) */}
-      {(selected.sourceStartMs !== undefined || selected.mediaId) ? (
-        <div className="space-y-3 border-t border-border pt-3">
-          <div className="flex items-center justify-between">
-            <h3 className="text-xs uppercase tracking-wider text-muted font-medium">
-              Source Range
-            </h3>
-            {mediaAsset?.durationMs ? (
-              <span className="text-[10px] text-subtle">
-                Max: {formatPreciseTime(mediaAsset.durationMs / 1000)}
-              </span>
-            ) : null}
-          </div>
-
-          <div className="grid grid-cols-2 gap-2">
+      {/* Tab Content */}
+      <div className="flex-1 p-3.5 space-y-4 overflow-y-auto">
+        {activeTab === 'Transform' && (
+          <div className="space-y-4 text-xs">
+            {/* Position X, Y */}
             <div>
-              <label className="block text-[11px] text-muted mb-1">Source Start (ms)</label>
+              <div className="flex items-center justify-between text-slate-400 text-[11px] mb-1.5 font-medium">
+                <span>Position (X, Y)</span>
+                <span className="font-mono text-slate-300">
+                  {posX}, {posY}
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  value={posX}
+                  onChange={(e) => handlePositionX(Number(e.target.value))}
+                  className="w-1/2 bg-[#181b24] border border-[#222634] focus:border-cyan-500 rounded-lg px-2.5 py-1.5 text-center text-slate-200 font-mono text-xs outline-none"
+                />
+                <input
+                  type="number"
+                  value={posY}
+                  onChange={(e) => handlePositionY(Number(e.target.value))}
+                  className="w-1/2 bg-[#181b24] border border-[#222634] focus:border-cyan-500 rounded-lg px-2.5 py-1.5 text-center text-slate-200 font-mono text-xs outline-none"
+                />
+              </div>
+            </div>
+
+            {/* Scale Slider */}
+            <div>
+              <div className="flex items-center justify-between text-slate-400 text-[11px] mb-1.5 font-medium">
+                <span>Scale</span>
+                <span className="font-mono text-slate-300">{scale}%</span>
+              </div>
               <input
-                type="number"
+                type="range"
+                min={10}
+                max={200}
+                value={scale}
+                onChange={(e) => handleScale(Number(e.target.value))}
+                className="w-full cursor-pointer accent-cyan-400"
+              />
+            </div>
+
+            {/* Rotation Slider */}
+            <div>
+              <div className="flex items-center justify-between text-slate-400 text-[11px] mb-1.5 font-medium">
+                <span>Rotation</span>
+                <span className="font-mono text-slate-300">{rotation}°</span>
+              </div>
+              <input
+                type="range"
+                min={-180}
+                max={180}
+                value={rotation}
+                onChange={(e) => handleRotation(Number(e.target.value))}
+                className="w-full cursor-pointer accent-cyan-400"
+              />
+            </div>
+
+            {/* Opacity Slider */}
+            <div>
+              <div className="flex items-center justify-between text-slate-400 text-[11px] mb-1.5 font-medium">
+                <span>Opacity</span>
+                <span className="font-mono text-slate-300">{opacity}%</span>
+              </div>
+              <input
+                type="range"
                 min={0}
-                disabled={isLocked}
-                value={Math.round(selected.sourceStartMs ?? 0)}
-                onChange={(e) => patchItem({ sourceStartMs: Number(e.target.value) })}
-                className="w-full h-8 rounded-lg border border-border bg-panel px-2 text-xs text-fg outline-none disabled:opacity-60"
+                max={100}
+                value={opacity}
+                onChange={(e) => handleOpacity(Number(e.target.value))}
+                className="w-full cursor-pointer accent-cyan-400"
               />
-              <span className="block text-[10px] text-subtle mt-0.5">
-                {formatPreciseTime((selected.sourceStartMs ?? 0) / 1000)}
-              </span>
             </div>
 
-            <div>
-              <label className="block text-[11px] text-muted mb-1">Source Duration (ms)</label>
-              <input
-                type="number"
-                min={100}
-                disabled={isLocked}
-                value={Math.round(selected.sourceDurationMs ?? selected.durationMs)}
-                onChange={(e) => patchItem({ sourceDurationMs: Number(e.target.value) })}
-                className="w-full h-8 rounded-lg border border-border bg-panel px-2 text-xs text-fg outline-none disabled:opacity-60"
-              />
-              <span className="block text-[10px] text-subtle mt-0.5">
-                {formatPreciseTime((selected.sourceDurationMs ?? selected.durationMs) / 1000)}
-              </span>
-            </div>
-          </div>
-        </div>
-      ) : null}
-
-      {/* Volume (Audio / Video) */}
-      {(selected.kind === 'video' || selected.kind === 'audio') ? (
-        <div className="space-y-2 border-t border-border pt-3">
-          <div className="flex items-center justify-between">
-            <h3 className="text-xs uppercase tracking-wider text-muted font-medium">Volume</h3>
-            <div className="flex items-center gap-1.5">
-              <span className="text-xs font-mono">{selected.volume ?? 100}%</span>
+            {/* Flip Buttons */}
+            <div className="flex items-center gap-2 pt-2">
               <button
                 type="button"
-                title="Add keyframe for volume at current playhead"
-                onClick={() => addKeyframeAtPlayhead('volume', selected.volume ?? 100)}
-                className={`cursor-pointer transition-colors ${hasKeyframesFor('volume') ? 'text-accent' : 'text-muted hover:text-fg'}`}
+                onClick={handleFlipH}
+                className="flex-1 bg-[#181b24] hover:bg-[#222634] border border-[#222634] text-slate-200 text-xs py-2 px-3 rounded-lg font-medium flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
               >
-                <Diamond size={11} />
+                <span>Flip Horiz</span>
+                <ArrowLeftRight size={13} className="text-slate-400" />
+              </button>
+              <button
+                type="button"
+                onClick={handleFlipV}
+                className="flex-1 bg-[#181b24] hover:bg-[#222634] border border-[#222634] text-slate-200 text-xs py-2 px-3 rounded-lg font-medium flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+              >
+                <span>Flip Vert</span>
+                <ArrowUpDown size={13} className="text-slate-400" />
               </button>
             </div>
           </div>
-          <input
-            type="range"
-            min={0}
-            max={100}
-            disabled={isLocked || selected.muted}
-            value={selected.muted ? 0 : (selected.volume ?? 100)}
-            onChange={(e) => patchItem({ volume: Number(e.target.value) })}
-            className="w-full accent-accent cursor-pointer disabled:opacity-40"
-          />
-          {selected.kind === 'audio' ? (
-            <div className="grid grid-cols-2 gap-2 pt-1">
-              <div>
-                <label className="block text-[11px] text-muted mb-1">Fade In (ms)</label>
-                <input
-                  type="number"
-                  min={0}
-                  disabled={isLocked}
-                  value={selected.fadeInMs ?? 0}
-                  onChange={(e) => patchItem({ fadeInMs: Number(e.target.value) })}
-                  className="w-full h-7 rounded-lg border border-border bg-panel px-2 text-xs text-fg outline-none disabled:opacity-60"
-                />
-              </div>
-              <div>
-                <label className="block text-[11px] text-muted mb-1">Fade Out (ms)</label>
-                <input
-                  type="number"
-                  min={0}
-                  disabled={isLocked}
-                  value={selected.fadeOutMs ?? 0}
-                  onChange={(e) => patchItem({ fadeOutMs: Number(e.target.value) })}
-                  className="w-full h-7 rounded-lg border border-border bg-panel px-2 text-xs text-fg outline-none disabled:opacity-60"
-                />
-              </div>
-            </div>
-          ) : null}
-        </div>
-      ) : null}
+        )}
 
-      {/* Text Layer Controls */}
-      {selected.kind === 'text' ? (
-        <TextLayerControls clip={selected} isLocked={isLocked} onPatch={patchItem} onKeyframe={addKeyframeAtPlayhead} hasKeyframe={hasKeyframesFor} />
-      ) : null}
-
-      {/* Media Reference & Replace */}
-      {selected.kind === 'video' || selected.kind === 'audio' ? (
-        <div className="space-y-2 border-t border-border pt-3">
-          <h3 className="text-xs uppercase tracking-wider text-muted font-medium">Media Source</h3>
-          {mediaAsset ? (
-            <div className="p-2 rounded-xl border border-border bg-panel flex items-center justify-between gap-2">
-              <div className="min-w-0 flex-1">
-                <p className="text-xs font-medium truncate">{mediaAsset.name}</p>
-                <p className="text-[10px] text-muted capitalize">{mediaAsset.type}</p>
-              </div>
-              <Button
-                size="sm"
-                variant="secondary"
-                disabled={isLocked}
-                onClick={() => setReplaceModalOpen(true)}
-              >
-                <FileCode size={13} />
-                Replace
-              </Button>
-            </div>
-          ) : (
-            <Button
-              size="sm"
-              variant="secondary"
-              className="w-full"
-              disabled={isLocked}
-              onClick={() => setReplaceModalOpen(true)}
-            >
-              Attach / Replace Media
-            </Button>
-          )}
-        </div>
-      ) : null}
-
-      {/* Keyframes summary */}
-      {(selected.keyframes?.length ?? 0) > 0 ? (
-        <div className="space-y-1.5 border-t border-border pt-3">
-          <h3 className="text-xs uppercase tracking-wider text-muted font-medium">Keyframes ({selected.keyframes!.length})</h3>
-          <div className="space-y-1 max-h-32 overflow-y-auto">
-            {selected.keyframes!.map((kf) => (
-              <div key={kf.id} className="flex items-center justify-between text-[11px] px-2 py-1 rounded bg-panel border border-border">
-                <span className="text-muted capitalize">{kf.property}</span>
-                <span className="font-mono">{formatPreciseTime(kf.timeMs / 1000)}</span>
-                <span className="text-accent">{Math.round(kf.value)}</span>
-                <button
-                  type="button"
-                  onClick={() => dispatch({ type: 'remove-keyframe', itemId: selected.id, keyframeId: kf.id })}
-                  className="text-muted hover:text-danger cursor-pointer"
-                >
-                  <Trash2 size={10} />
-                </button>
-              </div>
-            ))}
+        {activeTab !== 'Transform' && (
+          <div className="py-8 text-center text-slate-500 text-xs">
+            <p className="font-medium text-slate-300 mb-1">{activeTab} Controls</p>
+            <p>Parameters calibrated for {clipName}.</p>
           </div>
-        </div>
-      ) : null}
-
-      {/* Delete / Ripple Delete Actions */}
-      <div className="border-t border-border pt-3 space-y-2 mt-auto">
-        <Button
-          size="sm"
-          variant="secondary"
-          className="w-full text-xs"
-          disabled={isLocked}
-          onClick={() => dispatch({ type: 'ripple-delete-selected' })}
-        >
-          Ripple Delete (Shift+Del)
-        </Button>
+        )}
       </div>
-
-      {replaceModalOpen ? (
-        <ReplaceMediaModal
-          clip={selected}
-          onClose={() => setReplaceModalOpen(false)}
-        />
-      ) : null}
     </aside>
-  );
-}
-
-/** Text-layer specific property controls */
-function TextLayerControls({
-  clip,
-  isLocked,
-  onPatch,
-  onKeyframe,
-  hasKeyframe,
-}: {
-  clip: TextLayer;
-  isLocked: boolean;
-  onPatch: (patch: Partial<TimelineItem>) => void;
-  onKeyframe: (property: AnimatableProperty, value: number) => void;
-  hasKeyframe: (property: AnimatableProperty) => boolean;
-}) {
-  return (
-    <div className="space-y-3 border-t border-border pt-3">
-      <h3 className="text-xs uppercase tracking-wider text-muted font-medium">Text</h3>
-
-      {/* Text content */}
-      <label className="block text-[11px] text-muted">
-        Content
-        <textarea
-          disabled={isLocked}
-          value={clip.text}
-          rows={3}
-          onChange={(e) => onPatch({ text: e.target.value })}
-          className="mt-1 w-full rounded-lg border border-border bg-panel px-2 py-1.5 text-xs text-fg outline-none resize-none disabled:opacity-60 focus:border-accent"
-        />
-      </label>
-
-      {/* Font family + size */}
-      <div className="grid grid-cols-2 gap-2">
-        <label className="block text-[11px] text-muted">
-          Font
-          <select
-            disabled={isLocked}
-            value={clip.fontFamily}
-            onChange={(e) => onPatch({ fontFamily: e.target.value })}
-            className="mt-1 w-full h-7 rounded-lg border border-border bg-panel px-1 text-xs text-fg outline-none disabled:opacity-60"
-          >
-            {FONT_FAMILIES.map((f) => (
-              <option key={f} value={f}>{f}</option>
-            ))}
-          </select>
-        </label>
-        <label className="block text-[11px] text-muted">
-          Size
-          <input
-            type="number"
-            min={8}
-            max={300}
-            disabled={isLocked}
-            value={clip.fontSize}
-            onChange={(e) => onPatch({ fontSize: Number(e.target.value) })}
-            className="mt-1 w-full h-7 rounded-lg border border-border bg-panel px-2 text-xs text-fg outline-none disabled:opacity-60"
-          />
-        </label>
-      </div>
-
-      {/* Style toggles */}
-      <div className="grid grid-cols-3 gap-1.5">
-        {(['left', 'center', 'right'] as TextAlign[]).map((align) => (
-          <Button
-            key={align}
-            size="sm"
-            variant={clip.align === align ? 'subtle' : 'ghost'}
-            className={clip.align === align ? 'border-accent text-accent' : ''}
-            onClick={() => onPatch({ align })}
-          >
-            {align[0].toUpperCase() + align.slice(1)}
-          </Button>
-        ))}
-      </div>
-
-      {/* Weight & Italic */}
-      <div className="grid grid-cols-2 gap-2">
-        <label className="block text-[11px] text-muted">
-          Weight
-          <select
-            disabled={isLocked}
-            value={clip.fontWeight}
-            onChange={(e) => onPatch({ fontWeight: Number(e.target.value) })}
-            className="mt-1 w-full h-7 rounded-lg border border-border bg-panel px-1 text-xs text-fg outline-none disabled:opacity-60"
-          >
-            {[300, 400, 500, 600, 700, 800, 900].map((w) => (
-              <option key={w} value={w}>{w}</option>
-            ))}
-          </select>
-        </label>
-        <label className="block text-[11px] text-muted">
-          Style
-          <select
-            disabled={isLocked}
-            value={clip.fontStyle ?? 'normal'}
-            onChange={(e) => onPatch({ fontStyle: e.target.value as 'normal' | 'italic' })}
-            className="mt-1 w-full h-7 rounded-lg border border-border bg-panel px-1 text-xs text-fg outline-none disabled:opacity-60"
-          >
-            <option value="normal">Normal</option>
-            <option value="italic">Italic</option>
-          </select>
-        </label>
-      </div>
-
-      {/* Color */}
-      <label className="block text-[11px] text-muted">
-        Fill Color
-        <div className="flex items-center gap-2 mt-1">
-          <input
-            type="color"
-            disabled={isLocked}
-            value={clip.color}
-            onChange={(e) => onPatch({ color: e.target.value })}
-            className="h-8 w-10 rounded border border-border cursor-pointer disabled:opacity-60"
-          />
-          <input
-            type="text"
-            disabled={isLocked}
-            value={clip.color}
-            onChange={(e) => onPatch({ color: e.target.value })}
-            className="flex-1 h-8 rounded-lg border border-border bg-panel px-2 text-xs font-mono text-fg outline-none disabled:opacity-60"
-          />
-        </div>
-      </label>
-
-      {/* Stroke */}
-      <div className="grid grid-cols-2 gap-2">
-        <label className="block text-[11px] text-muted">
-          Stroke Color
-          <input
-            type="color"
-            disabled={isLocked}
-            value={clip.strokeColor ?? '#000000'}
-            onChange={(e) => onPatch({ strokeColor: e.target.value })}
-            className="mt-1 h-8 w-full rounded border border-border cursor-pointer disabled:opacity-60"
-          />
-        </label>
-        <label className="block text-[11px] text-muted">
-          Stroke Width
-          <input
-            type="number"
-            min={0}
-            max={20}
-            disabled={isLocked}
-            value={clip.strokeWidth ?? 0}
-            onChange={(e) => onPatch({ strokeWidth: Number(e.target.value) })}
-            className="mt-1 w-full h-8 rounded-lg border border-border bg-panel px-2 text-xs text-fg outline-none disabled:opacity-60"
-          />
-        </label>
-      </div>
-
-      {/* Background */}
-      <label className="block text-[11px] text-muted">
-        Background
-        <div className="flex items-center gap-2 mt-1">
-          <input
-            type="color"
-            disabled={isLocked}
-            value={clip.backgroundColor ?? '#000000'}
-            onChange={(e) => onPatch({ backgroundColor: e.target.value })}
-            className="h-8 w-10 rounded border border-border cursor-pointer disabled:opacity-60"
-          />
-          <input
-            type="range"
-            min={0}
-            max={100}
-            disabled={isLocked}
-            value={clip.backgroundOpacity ?? 0}
-            onChange={(e) => onPatch({ backgroundOpacity: Number(e.target.value) })}
-            className="flex-1 accent-accent disabled:opacity-40"
-            title="Background opacity"
-          />
-          <span className="text-[10px] w-6 text-right">{clip.backgroundOpacity ?? 0}%</span>
-        </div>
-      </label>
-
-      {/* Letter spacing & Line height */}
-      <div className="grid grid-cols-2 gap-2">
-        <label className="block text-[11px] text-muted">
-          Letter Spacing
-          <input
-            type="number"
-            step={0.5}
-            disabled={isLocked}
-            value={clip.letterSpacing ?? 0}
-            onChange={(e) => onPatch({ letterSpacing: Number(e.target.value) })}
-            className="mt-1 w-full h-7 rounded-lg border border-border bg-panel px-2 text-xs text-fg outline-none disabled:opacity-60"
-          />
-        </label>
-        <label className="block text-[11px] text-muted">
-          Line Height
-          <input
-            type="number"
-            step={0.1}
-            min={0.5}
-            max={5}
-            disabled={isLocked}
-            value={clip.lineHeight ?? 1.2}
-            onChange={(e) => onPatch({ lineHeight: Number(e.target.value) })}
-            className="mt-1 w-full h-7 rounded-lg border border-border bg-panel px-2 text-xs text-fg outline-none disabled:opacity-60"
-          />
-        </label>
-      </div>
-
-      {/* Animation */}
-      <label className="block text-[11px] text-muted">
-        Animation
-        <select
-          disabled={isLocked}
-          value={clip.animation}
-          onChange={(e) => onPatch({ animation: e.target.value as TextAnimation })}
-          className="mt-1 w-full h-7 rounded-lg border border-border bg-panel px-2 text-xs text-fg outline-none disabled:opacity-60"
-        >
-          {TEXT_ANIMATIONS.map((a) => (
-            <option key={a.value} value={a.value}>{a.label}</option>
-          ))}
-        </select>
-      </label>
-
-      {/* Animatable Transform Keyframe Toggles */}
-      <div className="pt-1">
-        <h4 className="text-[11px] uppercase tracking-wider text-muted mb-2">Keyframe Toggles</h4>
-        <div className="grid grid-cols-2 gap-1.5">
-          {([
-            ['positionX', clip.positionX],
-            ['positionY', clip.positionY],
-            ['scale', clip.scale ?? 1],
-            ['rotation', clip.rotation ?? 0],
-            ['opacity', clip.opacity ?? 100],
-          ] as [AnimatableProperty, number][]).map(([prop, val]) => (
-            <button
-              key={prop}
-              type="button"
-              onClick={() => onKeyframe(prop, val)}
-              className={`flex items-center gap-1.5 h-7 px-2 rounded-lg border text-[11px] cursor-pointer transition-colors ${
-                hasKeyframe(prop) ? 'border-accent bg-accent/10 text-accent' : 'border-border text-muted hover:text-fg hover:border-border'
-              }`}
-            >
-              <Diamond size={10} />
-              <span className="capitalize">{prop}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-    </div>
   );
 }

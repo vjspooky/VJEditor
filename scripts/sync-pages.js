@@ -41,11 +41,38 @@ const jsMatch = distHtml.match(/src="(\.\/assets\/index-[^"]+\.js)"/);
 const cssMatch = distHtml.match(/href="(\.\/assets\/index-[^"]+\.css)"/);
 
 if (jsMatch && cssMatch) {
-  const rootHtml = fs.readFileSync('index.html', 'utf-8');
-  const updatedRootHtml = rootHtml
-    .replace(/href="\.\/assets\/index-[^"]+\.css"/, `href="${cssMatch[1]}"`)
-    .replace(/import\('\.\/assets\/index-[^']+\.js'\)/, `import('${jsMatch[1]}')`);
-  fs.writeFileSync('index.html', updatedRootHtml);
+  const rootHtml = `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="VJEditor — AI-Powered Professional Video Creation Studio"
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <title>VJEditor — AI-Powered Professional Video Creation Studio</title>
+    <link rel="stylesheet" crossorigin href="${cssMatch[1]}" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module">
+      if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
+        import('/src/main.tsx');
+      } else {
+        import('${jsMatch[1]}');
+      }
+    </script>
+  </body>
+</html>
+`;
+  fs.writeFileSync('index.html', rootHtml);
 }
 
 console.log('GitHub Pages sync complete: root, assets, docs, and 404.html synced.');

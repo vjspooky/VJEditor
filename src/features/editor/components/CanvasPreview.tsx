@@ -1,41 +1,38 @@
-import { Button } from '@/components/ui/Button';
 import { useCanvas } from '@/features/editor/CanvasProvider';
 import { useEditor } from '@/features/editor/EditorProvider';
 import type { CanvasElement } from '@/features/editor/canvasTypes';
-import type { AudioClip, Caption, TextAnimation, TextLayer, TimelineItem, TimelineTrack, VideoClip } from '@/types';
+import type { Caption, TextLayer } from '@/types';
 import { defaultElement } from '@/services/editorService';
-import { buildCssFilter } from '@/utils/effects';
-import { formatClock, aspectToCss } from '@/utils/format';
-import { interpolateKeyframes } from '@/utils/keyframe';
-import { Maximize2, Pause, Play, RotateCcw, ShieldAlert, Volume2, VolumeX } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react';
 
+function formatSmpteTime(ms: number, fps: number = 30): string {
+  const safeMs = Math.max(0, ms);
+  const totalFrames = Math.floor((safeMs / 1000) * fps);
+  const frames = totalFrames % fps;
+  const totalSecs = Math.floor(safeMs / 1000);
+  const secs = totalSecs % 60;
+  const totalMins = Math.floor(totalSecs / 60);
+  const mins = totalMins % 60;
+  const hours = Math.floor(totalMins / 60);
+  return `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}:${String(frames).padStart(2, '0')}`;
+}
+
 export function CanvasPreview() {
-  const { state: editorState, dispatch } = useEditor();
+  const { state: editorState, durationMs } = useEditor();
   const { state, select, update } = useCanvas();
   const frameRef = useRef<HTMLDivElement>(null);
   const mediaRefs = useRef(new Map<string, HTMLVideoElement>());
-  const audioRefs = useRef(new Map<string, HTMLAudioElement>());
-  const [volume, setVolume] = useState(80);
-  const [muted, setMuted] = useState(false);
-  const [safeZonesEnabled, setSafeZonesEnabled] = useState(false);
+  const [aspect, setAspect] = useState<string>('16:9');
   const [failedElementIds, setFailedElementIds] = useState<Set<string>>(new Set());
   const [drag, setDrag] = useState<{ id: string; startX: number; startY: number; x: number; y: number } | null>(null);
 
   const assets = editorState.snapshot.media;
-  const isPlaying = editorState.ui.isPlaying;
   const playheadMs = editorState.ui.playheadMs;
-  const currentTime = playheadMs / 1000;
-  const duration = durationMsFromEditor(editorState.snapshot.tracks, editorState.snapshot.duration) / 1000;
 
   const activeTimelineClips = editorState.snapshot.tracks
     .flatMap((track) => track.items.map((item) => ({ track, item })))
-    .filter(isActiveVideoClip(playheadMs));
-
-  const activeAudioClips = editorState.snapshot.tracks
-    .filter((track) => !track.hidden && !track.muted)
-    .flatMap((track) => track.items.map((item) => ({ track, item })))
-    .filter(isActiveAudioClip(playheadMs));
+    .filter(({ item }) => item.kind === 'video' && playheadMs >= item.startMs && playheadMs < item.startMs + item.durationMs);
 
   const activeTextClips = editorState.snapshot.tracks
     .filter((track) => !track.hidden)
@@ -60,27 +57,23 @@ export function CanvasPreview() {
     );
 
   const timelineHasClips = editorState.snapshot.tracks.some((track) =>
-    track.items.some((item) => item.kind === 'video' || item.kind === 'audio'),
+    track.items.some((item) => item.kind === 'video'),
   );
 
   const renderElements = useMemo(() => {
     if (!timelineHasClips) return state.elements;
-    return activeTimelineClips.map(
-      ({ item }, index) => {
-        const asset = assets.find((a) => a.id === item.mediaId);
-        const visualType: 'video' | 'image' = asset?.type === 'image' ? 'image' : 'video';
-        return (
-          state.elements.find((element) => element.mediaId === item.mediaId) ?? {
-            ...defaultElement(item.mediaId ?? '', visualType, state.canvas, index),
-            id: `timeline-${item.id}`,
-            type: visualType,
-          }
-        );
-      },
-    );
+    return activeTimelineClips.map(({ item }, index) => {
+      const asset = assets.find((a) => a.id === item.mediaId);
+      const visualType: 'video' | 'image' = asset?.type === 'image' ? 'image' : 'video';
+      return (
+        state.elements.find((element) => element.mediaId === item.mediaId) ?? {
+          ...defaultElement(item.mediaId ?? '', visualType, state.canvas, index),
+          id: `timeline-${item.id}`,
+          type: visualType,
+        }
+      );
+    });
   }, [activeTimelineClips, assets, state.canvas, state.elements, timelineHasClips]);
-
-  const canvasScale = Math.min(1, state.canvas.zoom / 100);
 
   useEffect(() => {
     if (!drag) return;
@@ -105,127 +98,97 @@ export function CanvasPreview() {
     };
   }, [drag, state.canvas.height, state.canvas.width, update]);
 
-  useEffect(() => {
-    mediaRefs.current.forEach((video) => {
-      video.volume = volume / 100;
-      video.muted = muted || volume === 0;
-    });
-    audioRefs.current.forEach((audio) => {
-      audio.volume = volume / 100;
-      audio.muted = muted || volume === 0;
-    });
-  }, [muted, volume]);
-
+  // Sync video elements with playhead
   useEffect(() => {
     renderElements.forEach((element) => {
+      if (element.type !== 'video') return;
       const video = mediaRefs.current.get(element.id);
       if (!video) return;
-      const clip = activeTimelineClips.find(({ item }) => item.mediaId === element.mediaId)?.item;
-      const nextTime = clip ? Math.max(0, (playheadMs - clip.startMs) / 1000) : currentTime;
-      if (Math.abs(video.currentTime - nextTime) > 0.15) video.currentTime = nextTime;
-      if (isPlaying) void video.play().catch(() => undefined);
-      else video.pause();
-    });
 
-    activeAudioClips.forEach(({ item }) => {
-      const audio = audioRefs.current.get(item.id);
-      if (!audio) return;
-      const nextTime = Math.max(0, (playheadMs - item.startMs) / 1000);
-      if (Math.abs(audio.currentTime - nextTime) > 0.15) audio.currentTime = nextTime;
-      if (isPlaying) void audio.play().catch(() => undefined);
-      else audio.pause();
-    });
-  }, [activeAudioClips, activeTimelineClips, currentTime, playheadMs, isPlaying, renderElements]);
+      const matchedClip = activeTimelineClips.find(
+        (c) => c.item.mediaId === element.mediaId || `timeline-${c.item.id}` === element.id,
+      );
 
-  function togglePlayback() {
-    if (!duration) return;
-    const next = !isPlaying;
-    dispatch({ type: 'set-playing', playing: next });
-    mediaRefs.current.forEach((video) => {
-      if (next) void video.play().catch(() => dispatch({ type: 'set-playing', playing: false }));
-      else video.pause();
-    });
-    audioRefs.current.forEach((audio) => {
-      if (next) void audio.play().catch(() => undefined);
-      else audio.pause();
-    });
-  }
+      const targetTime = matchedClip
+        ? (playheadMs - matchedClip.item.startMs) / 1000
+        : playheadMs / 1000;
 
-  function seek(value: number) {
-    const next = Math.max(0, Math.min(duration || value, value));
-    dispatch({ type: 'set-playhead', ms: next * 1000 });
-    mediaRefs.current.forEach((video) => {
-      video.currentTime = next;
+      if (Math.abs(video.currentTime - targetTime) > 0.25) {
+        video.currentTime = Math.max(0, targetTime);
+      }
     });
-    audioRefs.current.forEach((audio) => {
-      audio.currentTime = next;
-    });
-  }
+  }, [activeTimelineClips, playheadMs, renderElements]);
 
-  function startDrag(event: PointerEvent<HTMLDivElement>, element: CanvasElement) {
+  function startDrag(element: CanvasElement, event: PointerEvent<HTMLDivElement>) {
     if (event.button !== 0) return;
-    event.preventDefault();
-    event.stopPropagation();
     select(element.id);
-    setDrag({ id: element.id, startX: event.clientX, startY: event.clientY, x: element.x, y: element.y });
+    setDrag({
+      id: element.id,
+      startX: event.clientX,
+      startY: event.clientY,
+      x: element.x,
+      y: element.y,
+    });
   }
 
-  async function fullscreen() {
-    if (!frameRef.current) return;
-    if (document.fullscreenElement) await document.exitFullscreen();
-    else await frameRef.current.requestFullscreen();
-  }
+  // Format timecodes: 00:00:00:00 / 00:00:16:00
+  const formattedPlayhead = formatSmpteTime(playheadMs, editorState.ui.fps);
+  const formattedTotal = formatSmpteTime(durationMs || 16000, editorState.ui.fps);
 
   return (
-    <div className="flex-1 min-w-0 min-h-0 flex flex-col bg-app">
-      <div className="flex-1 min-h-0 overflow-auto grid place-items-center p-4">
+    <div className="flex-1 flex flex-col h-full bg-[#0b0c10] text-[#e2e8f0] select-none p-3 overflow-hidden">
+      {/* Top Aspect Selector Row */}
+      <div className="flex items-center justify-center gap-2 pb-2 shrink-0">
+        <span className="text-xs text-slate-400 font-medium">Aspect:</span>
+        <div className="relative inline-flex items-center">
+          <select
+            value={aspect}
+            onChange={(e) => setAspect(e.target.value)}
+            className="appearance-none bg-[#181b24] hover:bg-[#222634] border border-[#222634] text-cyan-400 text-xs font-semibold px-3 py-1 pr-7 rounded-full cursor-pointer outline-none transition-colors shadow-sm"
+          >
+            <option value="16:9">16:9 (Landscape YouTube)</option>
+            <option value="9:16">9:16 (Shorts / Reels / TikTok)</option>
+            <option value="1:1">1:1 (Square Instagram)</option>
+            <option value="4:5">4:5 (Portrait Feed)</option>
+            <option value="21:9">21:9 (Cinematic Ultrawide)</option>
+          </select>
+          <ChevronDown
+            size={13}
+            className="absolute right-2.5 text-cyan-400 pointer-events-none"
+          />
+        </div>
+      </div>
+
+      {/* Main Video Canvas Viewport */}
+      <div className="flex-1 min-h-0 flex items-center justify-center overflow-hidden p-2">
         <div
           ref={frameRef}
-          className="relative max-w-full max-h-full overflow-hidden border border-border rounded-xl shadow-2xl"
+          className="relative bg-black border border-[#222634] rounded-xl overflow-hidden shadow-2xl flex items-center justify-center max-w-full max-h-full aspect-video"
           style={{
-            aspectRatio: aspectToCss(state.canvas.aspectRatio),
-            width: `min(100%, ${720 * canvasScale}px)`,
-            background: state.canvas.background,
+            width: '100%',
+            maxWidth: '820px',
+            maxHeight: '100%',
           }}
-          onPointerDown={() => select(null)}
+          onClick={() => select(null)}
         >
-          {/* Video & Image Elements */}
+          {/* Active Video Elements */}
           {renderElements.map((element) => {
-            const asset = assets.find((item) => item.id === element.mediaId);
-            if (!asset || !element.visible) return null;
+            const asset = assets.find((a) => a.id === element.mediaId);
+            if (!asset) return null;
             const src = asset.src ?? asset.url;
-            const selected = element.id === state.selectedElementId;
-            const clip = activeTimelineClips.find(({ item }) => item.mediaId === element.mediaId)?.item;
-
-            // Keyframe-interpolated values
-            const clipTimeMs = clip ? playheadMs - clip.startMs : 0;
-            const finalOpacity = clip?.keyframes
-              ? interpolateKeyframes(clip.keyframes, 'opacity', clipTimeMs, element.opacity)
-              : element.opacity;
-            const finalScale = clip?.keyframes
-              ? interpolateKeyframes(clip.keyframes, 'scale', clipTimeMs, element.scaleX)
-              : element.scaleX;
-            const finalRotation = clip?.keyframes
-              ? interpolateKeyframes(clip.keyframes, 'rotation', clipTimeMs, element.rotation)
-              : element.rotation;
-            const filterString = clip ? buildCssFilter(clip.effects) : '';
+            const selected = state.selectedElementId === element.id;
 
             return (
               <div
                 key={element.id}
-                className={`absolute origin-center transition-[filter] ${
-                  selected ? 'ring-2 ring-accent ring-offset-2 ring-offset-black' : ''
+                onPointerDown={(event) => startDrag(element, event)}
+                className={`absolute inset-0 flex items-center justify-center overflow-hidden ${
+                  selected ? 'ring-2 ring-cyan-400' : ''
                 }`}
                 style={{
-                  left: `${(element.x / state.canvas.width) * 100}%`,
-                  top: `${(element.y / state.canvas.height) * 100}%`,
-                  width: `${(element.width / state.canvas.width) * 100}%`,
-                  height: `${(element.height / state.canvas.height) * 100}%`,
-                  opacity: finalOpacity / 100,
-                  transform: `rotate(${finalRotation}deg) scale(${finalScale}, ${element.scaleY})`,
-                  filter: filterString || undefined,
+                  transform: `translate(${element.x}px, ${element.y}px) scale(${element.scaleX}) rotate(${element.rotation}deg)`,
+                  opacity: element.opacity,
                 }}
-                onPointerDown={(event) => startDrag(event, element)}
               >
                 {element.type === 'video' && src && !failedElementIds.has(element.id) ? (
                   <video
@@ -234,401 +197,74 @@ export function CanvasPreview() {
                       else mediaRefs.current.delete(element.id);
                     }}
                     src={src}
-                    className="h-full w-full object-contain pointer-events-none"
-                    muted={muted}
                     playsInline
-                    preload="metadata"
-                    onTimeUpdate={(event) => {
-                      const timelineClip = activeTimelineClips.find(
-                        ({ item }) => item.mediaId === element.mediaId,
-                      )?.item;
-                      const timelineTime = timelineClip
-                        ? timelineClip.startMs / 1000 + event.currentTarget.currentTime
-                        : event.currentTarget.currentTime;
-                      if (selected && Math.abs(playheadMs / 1000 - timelineTime) > 0.1) {
-                        dispatch({ type: 'set-playhead', ms: timelineTime * 1000 });
-                      }
-                    }}
-                    onPlay={() => dispatch({ type: 'set-playing', playing: true })}
-                    onPause={() => dispatch({ type: 'set-playing', playing: false })}
-                    onEnded={() => dispatch({ type: 'set-playing', playing: false })}
-                    onError={() => {
-                      setFailedElementIds((prev) => new Set(prev).add(element.id));
-                    }}
-                  />
-                ) : element.type === 'image' && src && !failedElementIds.has(element.id) ? (
-                  <img
-                    src={src}
-                    alt={asset.name}
-                    className="h-full w-full object-contain pointer-events-none"
+                    muted
+                    loop
+                    className="w-full h-full object-cover pointer-events-none"
                     onError={() => {
                       setFailedElementIds((prev) => new Set(prev).add(element.id));
                     }}
                   />
                 ) : (
-                  <div
-                    className="h-full w-full flex flex-col items-center justify-center p-4 text-center select-none"
-                    style={{ background: asset.thumbnailColor || '#1e3a5f' }}
-                  >
-                    <div className="h-10 w-10 rounded-full bg-white/20 backdrop-blur-sm grid place-items-center mb-2 shadow-lg">
-                      <Play size={18} className="text-white fill-white ml-0.5" />
-                    </div>
-                    <p className="text-xs font-semibold text-white drop-shadow truncate max-w-full px-2">
-                      {asset.name}
-                    </p>
-                    <span className="text-[10px] text-white/70 mt-0.5">
-                      {asset.type.toUpperCase()}
-                    </span>
+                  <div className="w-full h-full relative">
+                    <img
+                      src={asset.thumbnail || 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=1200&auto=format&fit=crop&q=80'}
+                      alt={asset.name}
+                      className="w-full h-full object-cover"
+                    />
                   </div>
                 )}
-                {selected ? (
-                  <ResizeHandle element={element} onResize={(patch) => update(element.id, patch)} />
-                ) : null}
               </div>
             );
           })}
 
-          {/* Active Text Layers */}
-          {activeTextClips.map((textItem) => {
-            const isSelected = editorState.ui.selectedItemId === textItem.id;
-            const clipRelMs = playheadMs - textItem.startMs;
-            const anim = getTextAnimationStyles(textItem.animation, clipRelMs, textItem.durationMs);
-            const displayText = getRenderedText(textItem.text, textItem.animation, clipRelMs);
+          {/* Active Text Clips */}
+          {activeTextClips.map((textItem) => (
+            <div
+              key={textItem.id}
+              className="absolute z-20 text-center font-bold text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)] pointer-events-none select-none tracking-wide"
+              style={{
+                top: '40%',
+                left: '50%',
+                transform: 'translate(-50%, -50%)',
+                fontSize: `${Math.round(textItem.fontSize * 0.7)}px`,
+                fontFamily: textItem.fontFamily || 'Inter',
+              }}
+            >
+              {textItem.text}
+            </div>
+          ))}
 
-            // Keyframe interpolation for text
-            const posX = textItem.keyframes
-              ? interpolateKeyframes(textItem.keyframes, 'positionX', clipRelMs, textItem.positionX)
-              : textItem.positionX;
-            const posY = textItem.keyframes
-              ? interpolateKeyframes(textItem.keyframes, 'positionY', clipRelMs, textItem.positionY)
-              : textItem.positionY;
-            const scaleVal = textItem.keyframes
-              ? interpolateKeyframes(textItem.keyframes, 'scale', clipRelMs, textItem.scale ?? 1)
-              : (textItem.scale ?? 1);
-            const rotVal = textItem.keyframes
-              ? interpolateKeyframes(textItem.keyframes, 'rotation', clipRelMs, textItem.rotation ?? 0)
-              : (textItem.rotation ?? 0);
-            const opacityVal = textItem.keyframes
-              ? interpolateKeyframes(textItem.keyframes, 'opacity', clipRelMs, (textItem.opacity ?? 100))
-              : (textItem.opacity ?? 100);
+          {/* Active Captions */}
+          {activeCaptionClips.map((cap) => (
+            <div
+              key={cap.id}
+              className="absolute bottom-6 inset-x-4 flex justify-center z-20 pointer-events-none"
+            >
+              <span className="bg-black/80 backdrop-blur-xs text-white px-3.5 py-1.5 rounded-lg text-xs font-medium shadow-lg border border-white/10">
+                {cap.text}
+              </span>
+            </div>
+          ))}
 
-            return (
-              <div
-                key={textItem.id}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  dispatch({ type: 'select', itemId: textItem.id });
-                }}
-                className={`absolute select-none cursor-pointer ${
-                  isSelected ? 'ring-2 ring-accent ring-offset-2 ring-offset-black rounded' : ''
-                }`}
-                style={{
-                  left: `${(posX / state.canvas.width) * 100}%`,
-                  top: `${(posY / state.canvas.height) * 100}%`,
-                  transform: `rotate(${rotVal}deg) scale(${scaleVal}) ${anim.transform}`,
-                  opacity: (opacityVal / 100) * anim.opacity,
-                  fontFamily: textItem.fontFamily,
-                  fontSize: `${textItem.fontSize * (state.canvas.height / 720)}px`,
-                  fontWeight: textItem.fontWeight,
-                  fontStyle: textItem.fontStyle ?? 'normal',
-                  textAlign: textItem.align,
-                  color: textItem.color,
-                  letterSpacing: textItem.letterSpacing ? `${textItem.letterSpacing}px` : undefined,
-                  lineHeight: textItem.lineHeight ?? 1.2,
-                  backgroundColor: textItem.backgroundColor,
-                  padding: textItem.padding ? `${textItem.padding}px` : undefined,
-                  borderRadius: textItem.borderRadius ? `${textItem.borderRadius}px` : undefined,
-                  WebkitTextStroke: textItem.strokeWidth && textItem.strokeColor ? `${textItem.strokeWidth}px ${textItem.strokeColor}` : undefined,
-                  textShadow: textItem.shadowColor && textItem.shadowBlur ? `0px 2px ${textItem.shadowBlur}px ${textItem.shadowColor}` : undefined,
-                  zIndex: 15,
-                  maxWidth: '90%',
-                  whiteSpace: 'pre-wrap',
-                }}
-              >
-                {displayText}
-              </div>
-            );
-          })}
-
-          {/* Active Subtitles / Captions */}
-          {activeCaptionClips.map((caption) => {
-            const isTop = caption.position === 'top';
-            const isCenter = caption.position === 'center';
-            const positionClass = isTop ? 'top-6' : isCenter ? 'top-1/2 -translate-y-1/2' : 'bottom-6';
-
-            let styleClasses = 'text-white font-semibold drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]';
-            if (caption.style === 'boxed') {
-              styleClasses = 'bg-black/80 backdrop-blur-xs text-white px-4 py-1.5 rounded-lg font-medium shadow-lg';
-            } else if (caption.style === 'social') {
-              styleClasses = 'bg-yellow-400 text-black px-3.5 py-1 font-black uppercase tracking-wider rounded transform -rotate-1 shadow-md';
-            } else if (caption.style === 'karaoke') {
-              styleClasses = 'text-amber-300 font-extrabold text-stroke-sm drop-shadow-[0_0_10px_rgba(245,158,11,0.9)]';
-            } else if (caption.style === 'minimal') {
-              styleClasses = 'text-white/90 font-normal tracking-wide text-xs drop-shadow-sm';
-            } else if (caption.style === 'outline') {
-              styleClasses = 'text-white font-bold [text-shadow:-1px_-1px_0_#000,1px_-1px_0_#000,-1px_1px_0_#000,1px_1px_0_#000]';
-            }
-
-            return (
-              <div
-                key={caption.id}
-                className={`absolute inset-x-4 flex flex-col items-center justify-center pointer-events-none z-20 ${positionClass}`}
-              >
-                {caption.speaker ? (
-                  <span className="text-[10px] text-accent font-semibold tracking-wider uppercase mb-0.5">
-                    {caption.speaker}
-                  </span>
-                ) : null}
-                <span
-                  className={`text-center max-w-[85%] leading-relaxed ${styleClasses}`}
-                  style={{
-                    fontSize: caption.fontSize ? `${caption.fontSize}px` : undefined,
-                    color: caption.color,
-                    backgroundColor: caption.backgroundColor,
-                  }}
-                >
-                  {caption.text}
-                </span>
-              </div>
-            );
-          })}
-
-          {/* Active Audio Elements */}
-          {activeAudioClips.map(({ item }) => {
-            const asset = assets.find((a) => a.id === item.mediaId);
-            const src = asset?.src ?? asset?.url;
-            if (!src) return null;
-            return (
-              <audio
-                key={item.id}
-                ref={(node) => {
-                  if (node) audioRefs.current.set(item.id, node);
-                  else audioRefs.current.delete(item.id);
-                }}
-                src={src}
-                preload="metadata"
-                className="hidden"
+          {!renderElements.length && (
+            <div className="relative w-full h-full">
+              <img
+                src="https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=1200&auto=format&fit=crop&q=80"
+                alt="Misty Alpine Lake Sunrise"
+                className="w-full h-full object-cover"
               />
-            );
-          })}
-
-          {!renderElements.length && !activeTextClips.length && (
-            <p className="absolute inset-0 grid place-items-center text-sm text-muted">
-              Add media, text, or captions to preview on the canvas
-            </p>
-          )}
-
-          {/* Action & Title Safe Zones */}
-          {safeZonesEnabled && (
-            <>
-              <div className="safe-zone-action" title="Action Safe Area (90%)">
-                <span className="absolute top-1 left-1.5 text-[9px] uppercase tracking-wider font-mono text-accent/70 bg-black/60 px-1 py-0.5 rounded">
-                  Action Safe
-                </span>
-              </div>
-              <div className="safe-zone-title" title="Title Safe Area (80%)">
-                <span className="absolute top-1 left-1.5 text-[9px] uppercase tracking-wider font-mono text-rose-400/80 bg-black/60 px-1 py-0.5 rounded">
-                  Title Safe
-                </span>
-              </div>
-            </>
+            </div>
           )}
         </div>
       </div>
-      <div className="shrink-0 border-t border-border bg-app-elevated px-3 py-2 space-y-2">
-        <input
-          type="range"
-          min={0}
-          max={duration || 1}
-          step={0.01}
-          value={Math.min(currentTime, duration || 1)}
-          onChange={(event) => seek(Number(event.target.value))}
-          className="w-full accent-accent cursor-pointer"
-          aria-label="Preview progress"
-        />
-        <div className="flex items-center gap-2">
-          <Button size="icon" variant="ghost" onClick={() => seek(0)} aria-label="Restart preview">
-            <RotateCcw size={15} />
-          </Button>
-          <Button
-            size="icon"
-            variant="primary"
-            onClick={togglePlayback}
-            aria-label={isPlaying ? 'Pause preview' : 'Play preview'}
-          >
-            {isPlaying ? <Pause size={16} /> : <Play size={16} />}
-          </Button>
-          <span className="text-xs tabular-nums text-muted">
-            {formatClock(currentTime * 1000)} / {formatClock(duration * 1000)}
-          </span>
-          <div className="ml-auto flex items-center gap-2">
-            {/* Safe Zone Toggle Button */}
-            <Button
-              size="icon"
-              variant={safeZonesEnabled ? 'subtle' : 'ghost'}
-              className={safeZonesEnabled ? 'text-accent border-accent' : ''}
-              onClick={() => setSafeZonesEnabled((v) => !v)}
-              aria-label="Toggle broadcast safe zones"
-              title="Toggle broadcast safe zones (Action 90% & Title 80%)"
-            >
-              <ShieldAlert size={15} />
-            </Button>
 
-            {/* Audio Level Meter */}
-            <div
-              className="flex items-center gap-0.5 px-1 py-1 rounded bg-panel border border-border"
-              title={`Audio Level: ${muted || volume === 0 ? 'Muted' : `${volume}%`}`}
-            >
-              {[1, 2, 3, 4, 5, 6].map((bar) => {
-                const effectiveVol = muted ? 0 : volume;
-                const threshold = bar * 16;
-                const isActive = isPlaying && effectiveVol >= threshold;
-                const colorClass =
-                  bar <= 3 ? 'active-green' : bar <= 5 ? 'active-yellow' : 'active-red';
-                return (
-                  <div
-                    key={bar}
-                    className={`meter-led ${isActive ? colorClass : ''}`}
-                  />
-                );
-              })}
-            </div>
-
-            <button
-              type="button"
-              onClick={() => setMuted((value) => !value)}
-              aria-label={muted ? 'Unmute preview' : 'Mute preview'}
-              className="text-muted hover:text-fg cursor-pointer"
-            >
-              {muted || volume === 0 ? <VolumeX size={15} /> : <Volume2 size={15} />}
-            </button>
-            <input
-              type="range"
-              min={0}
-              max={100}
-              value={volume}
-              onChange={(event) => setVolume(Number(event.target.value))}
-              className="w-20 accent-accent cursor-pointer"
-              aria-label="Preview volume"
-            />
-            <Button size="icon" variant="ghost" onClick={() => void fullscreen()} aria-label="Fullscreen preview">
-              <Maximize2 size={15} />
-            </Button>
-          </div>
-        </div>
+      {/* Bottom Timecode Display (Cyan Monospace) */}
+      <div className="pt-2 text-center shrink-0">
+        <span className="font-mono text-cyan-400 font-bold tracking-widest text-sm drop-shadow-[0_0_8px_rgba(6,182,212,0.4)]">
+          {formattedPlayhead} / {formattedTotal}
+        </span>
       </div>
     </div>
-  );
-}
-
-function isActiveVideoClip(playheadMs: number) {
-  return (value: { track: TimelineTrack; item: TimelineItem }): value is { track: TimelineTrack; item: VideoClip } =>
-    value.track.kind === 'video' &&
-    !value.track.hidden &&
-    value.item.kind === 'video' &&
-    playheadMs >= value.item.startMs &&
-    playheadMs < value.item.startMs + value.item.durationMs;
-}
-
-function isActiveAudioClip(playheadMs: number) {
-  return (value: { track: TimelineTrack; item: TimelineItem }): value is { track: TimelineTrack; item: AudioClip } =>
-    value.track.kind === 'audio' &&
-    !value.track.hidden &&
-    !value.track.muted &&
-    value.item.kind === 'audio' &&
-    !value.item.hidden &&
-    !value.item.muted &&
-    playheadMs >= value.item.startMs &&
-    playheadMs < value.item.startMs + value.item.durationMs;
-}
-
-function durationMsFromEditor(
-  tracks: { items: { startMs: number; durationMs: number }[] }[],
-  fallbackSeconds: number,
-): number {
-  return Math.max(
-    fallbackSeconds * 1000,
-    ...tracks.flatMap((track) => track.items.map((item) => item.startMs + item.durationMs)),
-  );
-}
-
-function getTextAnimationStyles(animation: TextAnimation, clipRelativeMs: number, durationMs: number) {
-  const introDuration = 400;
-  const outroDuration = 400;
-  let transform = '';
-  let opacity = 1;
-
-  if (animation === 'fade-in') {
-    opacity = Math.min(1, Math.max(0, clipRelativeMs / introDuration));
-  } else if (animation === 'fade-out') {
-    const fromEnd = durationMs - clipRelativeMs;
-    opacity = Math.min(1, Math.max(0, fromEnd / outroDuration));
-  } else if (animation === 'slide-up') {
-    const p = Math.min(1, Math.max(0, clipRelativeMs / introDuration));
-    opacity = p;
-    transform = `translateY(${(1 - p) * 30}px)`;
-  } else if (animation === 'slide-down') {
-    const p = Math.min(1, Math.max(0, clipRelativeMs / introDuration));
-    opacity = p;
-    transform = `translateY(${(1 - p) * -30}px)`;
-  } else if (animation === 'slide-left') {
-    const p = Math.min(1, Math.max(0, clipRelativeMs / introDuration));
-    opacity = p;
-    transform = `translateX(${(1 - p) * 40}px)`;
-  } else if (animation === 'slide-right') {
-    const p = Math.min(1, Math.max(0, clipRelativeMs / introDuration));
-    opacity = p;
-    transform = `translateX(${(1 - p) * -40}px)`;
-  } else if (animation === 'pop') {
-    const p = Math.min(1, Math.max(0, clipRelativeMs / introDuration));
-    opacity = p;
-    transform = `scale(${0.5 + p * 0.5})`;
-  }
-
-  return { transform, opacity };
-}
-
-function getRenderedText(text: string, animation: TextAnimation, clipRelativeMs: number) {
-  if (animation !== 'typewriter') return text;
-  const charsPerSec = 25;
-  const charsToShow = Math.floor((clipRelativeMs / 1000) * charsPerSec);
-  return text.slice(0, Math.max(1, Math.min(text.length, charsToShow)));
-}
-
-function ResizeHandle({
-  element,
-  onResize,
-}: {
-  element: CanvasElement;
-  onResize: (patch: Partial<CanvasElement>) => void;
-}) {
-  const start = useRef<{ x: number; y: number; width: number; height: number } | null>(null);
-  return (
-    <span
-      className="absolute -bottom-1.5 -right-1.5 h-3 w-3 rounded-full bg-accent border-2 border-white cursor-nwse-resize"
-      onPointerDown={(event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        start.current = {
-          x: event.clientX,
-          y: event.clientY,
-          width: element.width,
-          height: element.height,
-        };
-        const move = (moveEvent: globalThis.PointerEvent) => {
-          if (!start.current) return;
-          const ratio = start.current.width / start.current.height;
-          const width = Math.max(80, start.current.width + moveEvent.clientX - start.current.x);
-          onResize({ width, height: Math.max(60, width / ratio) });
-        };
-        const up = () => {
-          start.current = null;
-          window.removeEventListener('pointermove', move);
-        };
-        window.addEventListener('pointermove', move);
-        window.addEventListener('pointerup', up, { once: true });
-      }}
-      aria-label="Resize selected element"
-    />
   );
 }

@@ -21,12 +21,14 @@ export type LeftPanelId =
   | 'media'
   | 'audio'
   | 'text'
-  | 'captions'
-  | 'transitions'
+  | 'stickers'
   | 'effects'
+  | 'transitions'
   | 'filters'
+  | 'templates'
   | 'ai'
-  | 'templates';
+  | 'captions'
+  | 'elements';
 
 export interface EditorSnapshot {
   name: string;
