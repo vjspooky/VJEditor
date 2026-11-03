@@ -8,6 +8,7 @@ import {
   DashboardTemplatesPage,
 } from '@/pages/DashboardPage';
 import { EditorPage } from '@/pages/EditorPage';
+import { FullPageEmbedPage } from '@/pages/FullPageEmbedPage';
 import { AuthPage } from '@/pages/AuthPage';
 import { LandingPage } from '@/pages/LandingPage';
 import { NewProjectPage } from '@/pages/NewProjectPage';
@@ -41,6 +42,10 @@ export default function App() {
         <Route path="/" element={<EditorPage />} />
         <Route path="/editor" element={<EditorPage />} />
         <Route path="/editor/:projectId" element={<EditorPage />} />
+        <Route path="/full-page-embed" element={<FullPageEmbedPage />} />
+        <Route path="/full-page-embed/:projectId" element={<FullPageEmbedPage />} />
+        <Route path="/embed" element={<FullPageEmbedPage />} />
+        <Route path="/embed/:projectId" element={<FullPageEmbedPage />} />
         <Route path="/landing" element={<LandingPage />} />
         <Route path="/login" element={<AuthPage />} />
         <Route path="/dashboard" element={<AppLayout />}>

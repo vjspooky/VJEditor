@@ -4,6 +4,7 @@ import {
   Copy,
   Download,
   FolderOpen,
+  Globe,
   Image,
   Magnet,
   Mic2,
@@ -165,6 +166,16 @@ export function CommandBar({ isOpen, onClose }: { isOpen: boolean; onClose: () =
         },
       },
       {
+        id: 'full-page-embed',
+        label: 'Open Full Page Embed Mode (Google Sites)',
+        category: 'Embed & Share',
+        icon: Globe,
+        action: () => {
+          save();
+          navigate(`/full-page-embed/${state.projectId}`);
+        },
+      },
+      {
         id: 'dashboard',
         label: 'Back to Workspace Dashboard',
         category: 'Navigation',
@@ -175,7 +186,7 @@ export function CommandBar({ isOpen, onClose }: { isOpen: boolean; onClose: () =
         },
       },
     ];
-  }, [dispatch, navigate, save, state.ui.isPlaying, state.ui.splitAllTracks]);
+  }, [dispatch, navigate, save, state.projectId, state.ui.isPlaying, state.ui.splitAllTracks]);
 
   const filtered = useMemo(() => {
     if (!query.trim()) return commands;

@@ -1,9 +1,10 @@
 import { Button } from '@/components/ui/Button';
 import { Logo } from '@/components/ui/Logo';
 import { useEditor } from '@/features/editor/EditorProvider';
+import { EmbedModal } from '@/components/embed/EmbedModal';
 import { CommandBar } from '@/features/editor/components/CommandBar';
 import { ExportModal } from '@/features/editor/components/ExportModal';
-import { Download, Redo2, Save, Search, Undo2 } from 'lucide-react';
+import { Download, Redo2, Save, Search, Share2, Undo2 } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -11,6 +12,7 @@ export function EditorTopBar() {
   const { state, dispatch, save } = useEditor();
   const [editing, setEditing] = useState(false);
   const [exportModalOpen, setExportModalOpen] = useState(false);
+  const [embedModalOpen, setEmbedModalOpen] = useState(false);
   const [commandBarOpen, setCommandBarOpen] = useState(false);
   const navigate = useNavigate();
 
@@ -76,6 +78,17 @@ export function EditorTopBar() {
             <span className="hidden sm:inline">Save</span>
           </Button>
           <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => setEmbedModalOpen(true)}
+            aria-label="Embed in Google Sites or Web"
+            className="text-muted hover:text-fg text-xs gap-1 px-2 border border-border"
+            title="Get Google Sites Embed Code"
+          >
+            <Share2 size={13} />
+            <span className="hidden sm:inline">Embed</span>
+          </Button>
+          <Button
             variant="primary"
             size="sm"
             onClick={() => setExportModalOpen(true)}
@@ -100,6 +113,13 @@ export function EditorTopBar() {
 
       <CommandBar isOpen={commandBarOpen} onClose={() => setCommandBarOpen(false)} />
       {exportModalOpen ? <ExportModal onClose={() => setExportModalOpen(false)} /> : null}
+      {embedModalOpen ? (
+        <EmbedModal
+          projectId={state.projectId}
+          projectName={state.snapshot.name}
+          onClose={() => setEmbedModalOpen(false)}
+        />
+      ) : null}
     </>
   );
 }
