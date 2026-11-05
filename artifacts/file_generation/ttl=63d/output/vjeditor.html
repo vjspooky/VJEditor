@@ -86,7 +86,7 @@
       </div>
     </div>
 
-    <!-- Right Controls -->
+    <!-- Right Controls with Mode Switcher at the End -->
     <div class="flex items-center gap-3">
       <!-- Performance Status -->
       <div class="flex items-center gap-2 text-[11px] text-slate-400 bg-surface-950 px-2.5 py-1 rounded border border-white/5">
@@ -108,6 +108,16 @@
         <i data-lucide="download" class="w-3.5 h-3.5"></i>
         <span>Export Queue</span>
       </button>
+
+      <!-- Project Mode Switcher at the End -->
+      <div class="flex items-center bg-surface-950 p-0.5 rounded-lg border border-white/10 ml-2">
+        <button id="project-mode-new" onclick="switchProjectMode('newly-created')" class="px-2.5 py-1 rounded text-xs flex items-center gap-1.5 transition text-slate-400 hover:text-white" title="Newly Created Project Mode">
+          ✨ Newly Created
+        </button>
+        <button id="project-mode-existing" onclick="switchProjectMode('already-created')" class="px-2.5 py-1 rounded text-xs flex items-center gap-1.5 transition bg-indigo-600 text-white" title="Already Created Pro Project Mode">
+          📁 Already Created
+        </button>
+      </div>
     </div>
   </header>
 
@@ -461,15 +471,51 @@
   <!-- SCRIPT LOGIC -->
   <script>
     /* ========================================================
-       1. STATE MANAGEMENT
+       1. STATE MANAGEMENT & PROJECT MODES
        ======================================================== */
-    const state = {
+    const newlyCreatedState = {
       currentTime: 0,
-      totalDuration: 30, // seconds
+      totalDuration: 15,
       isPlaying: false,
-      editMode: 'select', // 'select' | 'blade' | 'ripple' | 'roll' | 'slip'
+      editMode: 'select',
       zoom: 1.0,
       safeZoneVisible: false,
+      projectMode: 'newly-created',
+      adjustmentSettings: {
+        filter: 'none',
+        blur: 0,
+      },
+      tracks: [
+        {
+          id: 'track-v1',
+          name: 'Video 1 (New Blank)',
+          type: 'video',
+          clips: [
+            { id: 'nc1', name: 'Draft_Clip_01.mp4', startTime: 0, duration: 15, color: 'from-surface-800 to-indigo-950' }
+          ]
+        },
+        {
+          id: 'track-a1',
+          name: 'Audio 1',
+          type: 'audio',
+          clips: [
+            { id: 'na1', name: 'Microphone_Raw.wav', startTime: 0, duration: 15, color: 'from-sky-950 to-indigo-950' }
+          ]
+        }
+      ],
+      scenes: [
+        { id: 1, start: 0, end: 15, title: 'Draft Sequence', tags: ['New', 'Blank'], confidence: '100%' }
+      ]
+    };
+
+    const alreadyCreatedState = {
+      currentTime: 0,
+      totalDuration: 30,
+      isPlaying: false,
+      editMode: 'select',
+      zoom: 1.0,
+      safeZoneVisible: false,
+      projectMode: 'already-created',
       adjustmentSettings: {
         filter: 'none',
         blur: 0,
@@ -518,6 +564,26 @@
         { id: 3, start: 20, end: 30, title: 'Summary & Call to Action', tags: ['Host', 'Graphic', 'Conclusion'], confidence: '99%' }
       ]
     };
+
+    let state = JSON.parse(JSON.stringify(alreadyCreatedState));
+
+    function switchProjectMode(mode) {
+      if (mode === 'newly-created') {
+        state = JSON.parse(JSON.stringify(newlyCreatedState));
+        document.getElementById('project-mode-new').className = "px-2.5 py-1 rounded text-xs flex items-center gap-1.5 transition bg-indigo-600 text-white";
+        document.getElementById('project-mode-existing').className = "px-2.5 py-1 rounded text-xs flex items-center gap-1.5 transition text-slate-400 hover:text-white";
+        showToast('Switched Mode: Newly Created Project');
+      } else {
+        state = JSON.parse(JSON.stringify(alreadyCreatedState));
+        document.getElementById('project-mode-new').className = "px-2.5 py-1 rounded text-xs flex items-center gap-1.5 transition text-slate-400 hover:text-white";
+        document.getElementById('project-mode-existing').className = "px-2.5 py-1 rounded text-xs flex items-center gap-1.5 transition bg-indigo-600 text-white";
+        showToast('Switched Mode: Already Created Pro Project');
+      }
+      renderTimelineUI();
+      populateSceneList();
+      renderPreview();
+      updatePlayheadUI();
+    }
 
     /* ========================================================
        2. CANVAS COMPOSITOR & COLOR SCOPES
@@ -573,14 +639,18 @@
       ctx.font = 'bold 36px monospace';
       ctx.textAlign = 'center';
       let activeSceneText = "VJEditor Core Timeline";
-      if (t < 11) activeSceneText = "SCENE 1: Dialogue & Face Tracking";
-      else if (t < 20) activeSceneText = "SCENE 2: B-Roll Hardware Showcase";
-      else activeSceneText = "SCENE 3: Outro Sequence";
+      if (state.projectMode === 'newly-created') {
+        activeSceneText = "NEW PROJECT: Draft Workspace";
+      } else {
+        if (t < 11) activeSceneText = "SCENE 1: Dialogue & Face Tracking";
+        else if (t < 20) activeSceneText = "SCENE 2: B-Roll Hardware Showcase";
+        else activeSceneText = "SCENE 3: Outro Sequence";
+      }
 
       ctx.fillText(activeSceneText, w / 2, h / 2);
       ctx.font = '20px sans-serif';
       ctx.fillStyle = '#94a3b8';
-      ctx.fillText(`Timestamp: ${t.toFixed(2)}s | Filter: ${state.adjustmentSettings.filter.toUpperCase()}`, w / 2, (h / 2) + 50);
+      ctx.fillText(`Mode: ${state.projectMode.toUpperCase()} | Timestamp: ${t.toFixed(2)}s`, w / 2, (h / 2) + 50);
 
       // Vignette effect simulation
       if (state.adjustmentSettings.blur > 0) {
@@ -747,7 +817,6 @@
           showToast(`Playhead must be inside clip to blade cut.`);
         }
       } else if (state.editMode === 'ripple') {
-        // Ripple delete this clip
         rippleDeleteClip(clipId);
       } else {
         showToast(`Selected Clip: "${clip.name}" (${clip.duration}s)`);
@@ -771,7 +840,6 @@
 
       if (!found) return;
 
-      // Ripple shift backwards
       state.tracks.forEach(t => {
         t.clips = t.clips.map(c => {
           if (c.startTime >= targetStartTime + targetDuration) {
@@ -868,7 +936,6 @@
       const leftPx = (state.currentTime / state.totalDuration) * totalWidth;
       playhead.style.left = `${leftPx}px`;
 
-      // Update time string
       const mins = Math.floor(state.currentTime / 60).toString().padStart(2, '0');
       const secs = Math.floor(state.currentTime % 60).toString().padStart(2, '0');
       const frames = Math.floor((state.currentTime % 1) * 30).toString().padStart(2, '0');
@@ -894,10 +961,10 @@
 
       showToast(`Searching neural embeddings for "${query}"...`);
       setTimeout(() => {
-        state.currentTime = 12.0;
+        state.currentTime = 5.0;
         updatePlayheadUI();
         renderPreview();
-        showToast(`Located matching shot at 00:12:00`);
+        showToast(`Located matching shot`);
       }, 700);
     }
 
@@ -905,7 +972,7 @@
       showToast('Scanning waveform for pauses > 400ms...');
       setTimeout(() => {
         autoRemoveGaps();
-        showToast('Cut & deleted 3 silence instances.');
+        showToast('Cut & deleted silence instances.');
       }, 900);
     }
 
@@ -919,14 +986,14 @@
     }
 
     function generateBrollSuggestion() {
-      showToast('Recommending AI B-Roll: "Datacenter server rack high-tech"');
-      const bTrack = state.tracks.find(t => t.id === 'track-broll');
+      showToast('Recommending AI B-Roll match');
+      const bTrack = state.tracks.find(t => t.id === 'track-v1' || t.id === 'track-broll');
       if (bTrack) {
         bTrack.clips.push({
           id: `broll_${Date.now()}`,
-          name: 'AI Generated: Neural Chip',
-          startTime: 14,
-          duration: 4,
+          name: 'AI Generated B-Roll',
+          startTime: 2,
+          duration: 3,
           color: 'from-amber-500 to-rose-600'
         });
         renderTimelineUI();
@@ -941,7 +1008,7 @@
       showToast('Analyzing optical flow for scene transitions...');
       setTimeout(() => {
         populateSceneList();
-        showToast('Detected 3 discrete scene transitions.');
+        showToast('Detected scene boundaries.');
       }, 600);
     }
 
@@ -978,18 +1045,20 @@
     }
 
     function addAdjustmentLayer() {
-      const adjTrack = state.tracks.find(t => t.type === 'adjustment');
-      if (adjTrack) {
-        adjTrack.clips.push({
-          id: `adj_${Date.now()}`,
-          name: 'Adjustment Layer (FX)',
-          startTime: 0,
-          duration: 30,
-          color: 'from-amber-600/50 to-orange-700/60'
-        });
-        renderTimelineUI();
-        showToast('Inserted Adjustment FX Layer');
+      let adjTrack = state.tracks.find(t => t.type === 'adjustment');
+      if (!adjTrack) {
+        adjTrack = { id: 'track-adj', name: 'Adjustment FX', type: 'adjustment', clips: [] };
+        state.tracks.unshift(adjTrack);
       }
+      adjTrack.clips.push({
+        id: `adj_${Date.now()}`,
+        name: 'Adjustment Layer (FX)',
+        startTime: 0,
+        duration: state.totalDuration,
+        color: 'from-amber-600/50 to-orange-700/60'
+      });
+      renderTimelineUI();
+      showToast('Inserted Adjustment FX Layer');
     }
 
     /* ========================================================
@@ -1034,7 +1103,7 @@
 
       if (lower.includes('cut') || lower.includes('blade')) {
         setEditMode('blade');
-        handleClipClick('track-v1', 'c1');
+        handleClipClick('track-v1', state.tracks.find(t => t.type === 'video')?.clips[0]?.id);
       } else if (lower.includes('pause') || lower.includes('silence')) {
         runSilenceRemover();
       } else if (lower.includes('color') || lower.includes('teal')) {
