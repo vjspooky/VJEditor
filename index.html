@@ -517,44 +517,62 @@
       safeZoneVisible: false,
       projectMode: 'already-created',
       adjustmentSettings: {
-        filter: 'none',
+        filter: 'cinematic-teal',
         blur: 0,
       },
       tracks: [
         {
-          id: 'track-adj',
-          name: 'Adjustment FX',
-          type: 'adjustment',
+          id: 'track-text',
+          name: 'Titles & Graphics',
+          type: 'text',
           clips: [
-            { id: 'clip-adj-1', name: 'Color Grade LUT', startTime: 0, duration: 30, color: 'from-amber-600/40 to-orange-700/60' }
+            { id: 'clip-t1', name: 'KERALA ESCAPE (Title)', startTime: 0.5, duration: 4.5, color: 'from-amber-600 to-orange-700' },
+            { id: 'clip-t2', name: 'Subscribe Callout', startTime: 8.0, duration: 4.0, color: 'from-yellow-600 to-amber-700' }
           ]
         },
         {
-          id: 'track-v1',
-          name: 'Video 1 (A-Roll)',
+          id: 'track-captions',
+          name: 'Auto Captions',
+          type: 'caption',
+          clips: [
+            { id: 'cap-1', name: 'Caption: Western Ghats', startTime: 1.0, duration: 3.5, color: 'from-purple-600 to-indigo-700' },
+            { id: 'cap-2', name: 'Caption: Amazing Destination', startTime: 5.5, duration: 4.0, color: 'from-purple-600 to-indigo-700' },
+            { id: 'cap-3', name: 'Caption: 4K Journey', startTime: 10.0, duration: 4.5, color: 'from-purple-600 to-indigo-700' }
+          ]
+        },
+        {
+          id: 'track-overlay',
+          name: 'Video 2 (Host PIP)',
           type: 'video',
           clips: [
-            { id: 'c1', name: 'Main Speaker Interview', startTime: 0, duration: 11, sourceStart: 0, color: 'from-blue-600 to-indigo-700', linkedTo: 'a1' },
-            { id: 'c2', name: 'Tech Product Showcase', startTime: 12, duration: 8, sourceStart: 0, color: 'from-indigo-600 to-purple-700', linkedTo: 'a2' },
-            { id: 'c3', name: 'Closing Remarks', startTime: 21, duration: 9, sourceStart: 0, color: 'from-cyan-600 to-blue-700', linkedTo: 'a3' }
+            { id: 'clip-host-pip', name: 'Host Studio Review', startTime: 9.5, duration: 6.0, color: 'from-emerald-600 to-teal-700' }
           ]
         },
         {
-          id: 'track-broll',
-          name: 'Video 2 (B-Roll)',
+          id: 'track-video',
+          name: 'Video 1 (Base Footage)',
           type: 'video',
           clips: [
-            { id: 'b1', name: 'AI Server Farm Macro', startTime: 4, duration: 5, sourceStart: 0, color: 'from-emerald-600 to-teal-700' }
+            { id: 'c1', name: 'Alpine Lake Sunrise', startTime: 0.0, duration: 7.5, color: 'from-blue-600 to-indigo-700' },
+            { id: 'c2', name: 'Cyberpunk Metropolis Night', startTime: 7.5, duration: 8.5, color: 'from-indigo-600 to-purple-700' },
+            { id: 'c3', name: 'Closing Scenic View', startTime: 16.0, duration: 14.0, color: 'from-cyan-600 to-blue-700' }
           ]
         },
         {
-          id: 'track-a1',
-          name: 'Audio 1 (Dialogue)',
+          id: 'track-audio-sfx',
+          name: 'SFX & Dialogue',
           type: 'audio',
           clips: [
-            { id: 'a1', name: 'Speaker_Mic.wav', startTime: 0, duration: 11, color: 'from-sky-700 to-sky-900', linkedTo: 'c1' },
-            { id: 'a2', name: 'Product_SFX.wav', startTime: 12, duration: 8, color: 'from-sky-700 to-sky-900', linkedTo: 'c2' },
-            { id: 'a3', name: 'Closing_Audio.wav', startTime: 21, duration: 9, color: 'from-sky-700 to-sky-900', linkedTo: 'c3' }
+            { id: 'sfx-c1', name: 'Cinematic High Whoosh', startTime: 0.4, duration: 1.2, color: 'from-sky-700 to-sky-900' },
+            { id: 'sfx-c2', name: 'Bass Impact Hit', startTime: 7.4, duration: 1.8, color: 'from-sky-700 to-sky-900' }
+          ]
+        },
+        {
+          id: 'track-audio-bgm',
+          name: 'Music (Soundtrack)',
+          type: 'audio',
+          clips: [
+            { id: 'bgm-c1', name: 'Epic Horizons Orchestra', startTime: 0.0, duration: 30.0, color: 'from-blue-800 to-indigo-950' }
           ]
         }
       ],
@@ -987,7 +1005,7 @@
 
     function generateBrollSuggestion() {
       showToast('Recommending AI B-Roll match');
-      const bTrack = state.tracks.find(t => t.id === 'track-v1' || t.id === 'track-broll');
+      const bTrack = state.tracks.find(t => t.id === 'track-video' || t.id === 'track-v1');
       if (bTrack) {
         bTrack.clips.push({
           id: `broll_${Date.now()}`,
@@ -1103,7 +1121,7 @@
 
       if (lower.includes('cut') || lower.includes('blade')) {
         setEditMode('blade');
-        handleClipClick('track-v1', state.tracks.find(t => t.type === 'video')?.clips[0]?.id);
+        handleClipClick('track-video', state.tracks.find(t => t.type === 'video')?.clips[0]?.id);
       } else if (lower.includes('pause') || lower.includes('silence')) {
         runSilenceRemover();
       } else if (lower.includes('color') || lower.includes('teal')) {
