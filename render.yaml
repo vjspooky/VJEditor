@@ -1,0 +1,44 @@
+services:
+  - type: web
+    name: vjeditor-api
+    runtime: docker
+    rootDir: backend
+    plan: free
+    healthCheckPath: /api/health
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: postgres
+      - key: DATABASE_HOST
+        fromDatabase:
+          name: vjeditor-db
+          property: host
+      - key: DATABASE_PORT
+        fromDatabase:
+          name: vjeditor-db
+          property: port
+      - key: DATABASE_NAME
+        fromDatabase:
+          name: vjeditor-db
+          property: database
+      - key: DATABASE_USERNAME
+        fromDatabase:
+          name: vjeditor-db
+          property: user
+      - key: DATABASE_PASSWORD
+        fromDatabase:
+          name: vjeditor-db
+          property: password
+      - key: VJEDITOR_AUTH_USERNAME
+        sync: false
+      - key: VJEDITOR_AUTH_PASSWORD
+        sync: false
+      - key: VJEDITOR_JWT_SECRET
+        sync: false
+      - key: VJEDITOR_FRONTEND_ORIGINS
+        value: https://vjspooky.github.io
+
+databases:
+  - name: vjeditor-db
+    plan: free
+    databaseName: vjeditor
+    user: vjeditor

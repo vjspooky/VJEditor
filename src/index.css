@@ -1,0 +1,185 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+
+  --color-app: #0b0c10;
+  --color-app-elevated: #12141a;
+  --color-panel: #181b24;
+  --color-panel-hover: #222634;
+  --color-border: #222634;
+  --color-border-strong: #2c3244;
+  --color-muted: #8b8f9a;
+  --color-subtle: #5c6170;
+  --color-fg: #e2e8f0;
+  --color-accent: #06b6d4;
+  --color-accent-hover: #22d3ee;
+  --color-accent-soft: rgba(6, 182, 212, 0.15);
+  --color-danger: #f43f5e;
+  --color-success: #10b981;
+  --color-track-video: #0891b2;
+  --color-track-audio: #10b981;
+  --color-track-text: #7c3aed;
+  --color-track-caption: #d97706;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-app);
+  color: var(--color-fg);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+  overflow: hidden;
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #0f1117;
+}
+::-webkit-scrollbar-thumb {
+  background: #232838;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #333a52;
+}
+
+/* Custom Range Sliders */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  background: #1e2230;
+  height: 4px;
+  border-radius: 2px;
+  outline: none;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #06b6d4;
+  cursor: pointer;
+  box-shadow: 0 0 8px rgba(6, 182, 212, 0.5);
+  transition: transform 0.1s ease;
+}
+input[type="range"]::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+}
+
+/* Safe Zone Overlay Guides */
+.safe-zone-action {
+  position: absolute;
+  inset: 5%;
+  border: 1px dashed rgba(79, 140, 255, 0.45);
+  pointer-events: none;
+  z-index: 40;
+}
+
+.safe-zone-title {
+  position: absolute;
+  inset: 10%;
+  border: 1px dashed rgba(244, 63, 94, 0.45);
+  pointer-events: none;
+  z-index: 40;
+}
+
+/* Audio Level Meter LED Bars */
+.meter-led {
+  width: 3px;
+  height: 8px;
+  border-radius: 1px;
+  background: #1a1e2b;
+  transition: background-color 0.08s ease, box-shadow 0.08s ease;
+}
+.meter-led.active-green {
+  background: #10b981;
+  box-shadow: 0 0 4px #10b981;
+}
+.meter-led.active-yellow {
+  background: #f59e0b;
+  box-shadow: 0 0 4px #f59e0b;
+}
+.meter-led.active-red {
+  background: #ef4444;
+  box-shadow: 0 0 4px #ef4444;
+}
+
+/* Timeline grid & keyframe diamond */
+.timeline-grid {
+  background-size: 20px 20px;
+  background-image: linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+}
+
+.keyframe-diamond {
+  width: 8px;
+  height: 8px;
+  transform: rotate(45deg);
+  background: var(--color-accent);
+  box-shadow: 0 0 6px rgba(79, 140, 255, 0.8);
+  cursor: pointer;
+}
+.keyframe-diamond.active {
+  background: #f59e0b;
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.9);
+}
+
+.input-field {
+  display: block;
+  width: 100%;
+  margin-top: 0.25rem;
+  min-height: 2.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+  background: var(--color-app);
+  color: var(--color-fg);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  outline: none;
+}
+
+.input-field:focus {
+  border-color: var(--color-accent);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #343645 transparent;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #343645;
+  border-radius: 999px;
+}
+
+::selection {
+  background: #4f8cff55;
+}
+
+@keyframes playhead-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.65;
+  }
+}

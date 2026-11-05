@@ -1,0 +1,38 @@
+-- V4: Create Timeline, Tracks, and Clips
+CREATE TABLE IF NOT EXISTS timelines (
+    id VARCHAR(36) PRIMARY KEY,
+    project_id VARCHAR(36) NOT NULL UNIQUE REFERENCES projects(id) ON DELETE CASCADE,
+    duration NUMERIC(10, 3) NOT NULL DEFAULT 0.0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS timeline_tracks (
+    id VARCHAR(36) PRIMARY KEY,
+    timeline_id VARCHAR(36) NOT NULL REFERENCES timelines(id) ON DELETE CASCADE,
+    name VARCHAR(100) NOT NULL,
+    type VARCHAR(20) NOT NULL,
+    track_order INTEGER NOT NULL DEFAULT 0,
+    muted BOOLEAN NOT NULL DEFAULT FALSE,
+    locked BOOLEAN NOT NULL DEFAULT FALSE,
+    visible BOOLEAN NOT NULL DEFAULT TRUE
+);
+
+CREATE TABLE IF NOT EXISTS timeline_clips (
+    id VARCHAR(36) PRIMARY KEY,
+    track_id VARCHAR(36) NOT NULL REFERENCES timeline_tracks(id) ON DELETE CASCADE,
+    media_id VARCHAR(36) REFERENCES media_assets(id) ON DELETE SET NULL,
+    name VARCHAR(255) NOT NULL,
+    type VARCHAR(20) NOT NULL,
+    start_time NUMERIC(10, 3) NOT NULL DEFAULT 0.0,
+    duration NUMERIC(10, 3) NOT NULL,
+    source_start_time NUMERIC(10, 3) NOT NULL DEFAULT 0.0,
+    source_duration NUMERIC(10, 3) NOT NULL,
+    volume NUMERIC(4, 2) NOT NULL DEFAULT 1.0,
+    muted BOOLEAN NOT NULL DEFAULT FALSE,
+    visible BOOLEAN NOT NULL DEFAULT TRUE,
+    locked BOOLEAN NOT NULL DEFAULT FALSE
+);
+
+CREATE INDEX IF NOT EXISTS idx_tracks_timeline ON timeline_tracks(timeline_id);
+CREATE INDEX IF NOT EXISTS idx_clips_track ON timeline_clips(track_id);

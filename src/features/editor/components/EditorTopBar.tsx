@@ -1,0 +1,136 @@
+import { Button } from '@/components/ui/Button';
+import { Logo } from '@/components/ui/Logo';
+import { useEditor } from '@/features/editor/EditorProvider';
+import { EmbedModal } from '@/components/embed/EmbedModal';
+import { CommandBar } from '@/features/editor/components/CommandBar';
+import { ExportModal } from '@/features/editor/components/ExportModal';
+import { Download, Redo2, Save, Search, Share2, Undo2 } from 'lucide-react';
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+
+export function EditorTopBar() {
+  const { state, dispatch, save } = useEditor();
+  const [editing, setEditing] = useState(false);
+  const [exportModalOpen, setExportModalOpen] = useState(false);
+  const [embedModalOpen, setEmbedModalOpen] = useState(false);
+  const [commandBarOpen, setCommandBarOpen] = useState(false);
+  const navigate = useNavigate();
+
+  return (
+    <>
+      <header className="h-12 shrink-0 border-b border-border bg-app-elevated flex items-center gap-1.5 px-2 sm:gap-3 sm:px-3 overflow-x-auto">
+        <Logo compact to="/dashboard" />
+        <div className="w-px h-5 bg-border" />
+        {editing ? (
+          <input
+            autoFocus
+            value={state.snapshot.name}
+            onChange={(e) => dispatch({ type: 'rename', name: e.target.value })}
+            onBlur={() => setEditing(false)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') setEditing(false);
+            }}
+            className="h-8 min-w-[180px] rounded-md border border-border bg-panel px-2 text-sm outline-none"
+          />
+        ) : (
+          <button
+            type="button"
+            className="max-w-[34vw] truncate text-sm font-medium px-2 h-8 rounded-md hover:bg-panel cursor-pointer"
+            onClick={() => setEditing(true)}
+          >
+            {state.snapshot.name}
+            {!state.ui.isSaved ? <span className="text-muted font-normal"> • Unsaved</span> : null}
+          </button>
+        )}
+
+        <div className="ml-auto flex items-center gap-1.5">
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => setCommandBarOpen(true)}
+            className="text-muted hover:text-fg text-xs gap-1 px-2 border border-border"
+            title="Open Command Bar (Ctrl+K)"
+          >
+            <Search size={13} />
+            <span className="hidden md:inline font-mono text-[11px]">⌘K</span>
+          </Button>
+
+          <Button
+            size="icon"
+            variant="ghost"
+            disabled={state.past.length === 0}
+            onClick={() => dispatch({ type: 'undo' })}
+            aria-label="Undo"
+          >
+            <Undo2 size={16} />
+          </Button>
+          <Button
+            size="icon"
+            variant="ghost"
+            disabled={state.future.length === 0}
+            onClick={() => dispatch({ type: 'redo' })}
+            aria-label="Redo"
+          >
+            <Redo2 size={16} />
+          </Button>
+          <Button size="sm" onClick={save} aria-label="Save project">
+            <Save size={14} />
+            <span className="hidden sm:inline">Save</span>
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => setEmbedModalOpen(true)}
+            aria-label="Embed in Google Sites or Web"
+            className="text-muted hover:text-fg text-xs gap-1 px-2 border border-border"
+            title="Get Google Sites Embed Code"
+          >
+            <Share2 size={13} />
+            <span className="hidden sm:inline">Embed</span>
+          </Button>
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={() => setExportModalOpen(true)}
+            aria-label="Export project"
+          >
+            <Download size={14} />
+            <span className="hidden sm:inline">Export</span>
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => {
+              save();
+              navigate('/dashboard');
+            }}
+            aria-label="Save and close editor"
+          >
+            <span className="hidden sm:inline">Close</span>
+          </Button>
+        </div>
+      </header>
+
+      <CommandBar isOpen={commandBarOpen} onClose={() => setCommandBarOpen(false)} />
+      {exportModalOpen ? <ExportModal onClose={() => setExportModalOpen(false)} /> : null}
+      {embedModalOpen ? (
+        <EmbedModal
+          projectId={state.projectId}
+          projectName={state.snapshot.name}
+          onClose={() => setEmbedModalOpen(false)}
+        />
+      ) : null}
+    </>
+  );
+}
+
+function slugify(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 60) || 'vjeditor-project';
+}
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+void slugify; // retained for future JSON export use
